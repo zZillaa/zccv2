@@ -65,17 +65,18 @@ int main(int argc, char **argv) {
     if (contents != NULL) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
         Token* tokens = lexer(contents);
-
+        print_tokens(tokens);
+        
         struct program* ast = build_ast(tokens);
         print_ast(ast);
     
         // Name resolution and type checking
-        struct stack* stack = create_stack();
-        scope_enter(stack, NULL);
-        program_resolve(ast, stack);    
-        program_typecheck(ast, stack);
+        // struct stack* stack = create_stack();
+        // scope_enter(stack, NULL);
+        // program_resolve(ast, stack);    
+        // program_typecheck(ast, stack);
         
-        free_stack(stack);
+        // free_stack(stack);
         free_ast(ast);
         free_tokens(tokens);
         free(contents);

@@ -231,7 +231,7 @@ void param_list_resolve(struct param_list* params, struct stack* stack) {
 
 void expr_resolve(struct expr* expr, struct stack* stack) {
     if (!expr) return;
-    printf("In expr resolve\n");
+
     switch (expr->kind) {
         case EXPR_NAME: {
         	int found_scope = -1;
@@ -378,9 +378,7 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 				break;
 
 			case STMT_RETURN:
-				if (stmt->expr) {
-					printf("I got to return statement\n");
-					
+				if (stmt->expr) {					
 					expr_resolve(stmt->expr, stack);
 					debug_print_scope_stack(stack, "After return expr resolve");
 				}

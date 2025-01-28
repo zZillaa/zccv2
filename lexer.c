@@ -56,7 +56,7 @@ Token* lexer(char* contents) {
     unsigned contents_length = strlen(contents);
     unsigned max_tokens = contents_length + 1;
     Token* tokens = (Token*)malloc(sizeof(Token) * max_tokens);
-    if (tokens == NULL) {
+    if (!tokens) {
         perror("Error allocating space for tokens");
         exit(EXIT_FAILURE);
     }
@@ -185,7 +185,7 @@ Token* lexer(char* contents) {
 
             }
 
-        } else if (c == '=' || c == ';' || c == '(' || c == ')' || c == '{' || c == '}' || c == ',') {
+        } else if (c == '=' || c == ';' || c == '(' || c == ')' || c == '{' || c == '}' || c ==  '[' || c == ']' || c == ',' || c == '_') {
             TokenType type;
             switch (c) {
                 case '=': type = TOKEN_ASSIGNMENT; break;
@@ -194,7 +194,10 @@ Token* lexer(char* contents) {
                 case ')': type = TOKEN_RIGHT_PARENTHESES; break;
                 case '{': type = TOKEN_LEFT_BRACE; break;
                 case '}': type = TOKEN_RIGHT_BRACE; break;
+                case '[': type = TOKEN_LEFT_BRACKET; break;
+                case ']': type = TOKEN_RIGHT_BRACKET; break;
                 case ',': type = TOKEN_COMMA; break;
+                case '_': type = TOKEN_UNDERSCORE; break;
                 default: type = TOKEN_UNKNOWN; break;
             }
 
@@ -315,7 +318,10 @@ void print_tokens(Token* tokens) {
             case TOKEN_RIGHT_BRACE:
             case TOKEN_LEFT_PARENTHESES:
             case TOKEN_RIGHT_PARENTHESES:
+            case TOKEN_LEFT_BRACKET:
+            case TOKEN_RIGHT_BRACKET:
             case TOKEN_ASSIGNMENT:
+            case TOKEN_UNDERSCORE:
             case TOKEN_LESS:
             case TOKEN_GREATER:
                 printf("CHARACTER, Value: %c\n", tokens[i].value.character);

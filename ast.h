@@ -80,6 +80,7 @@ typedef enum {
     EXPR_CHARACTER,
     EXPR_BOOLEAN,
     EXPR_STRING,
+    EXPR_ARRAY,
     
     EXPR_UNKNOWN
 
@@ -177,6 +178,8 @@ struct stmt* parse_block(Token* tokens, int* tokenIdx);
 struct stmt* parse_statement(Token* tokens, int* tokenIdx);
 struct param_list* parse_parameters(Token* tokens, int* tokenIdx);
 struct decl* parse_function(Token* tokens, int* tokenIdx, char* name, struct type* return_type);
+struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* element_type);
+struct expr* parse_array_init_list(Token* tokens, int* tokenIdx);
 struct decl* parse_declaration(Token* tokens, int* tokenIdx);
 
 

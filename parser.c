@@ -6,7 +6,7 @@
 
 struct expr* expr_create_integer_literal(int i) {
     struct expr* node = expr_create(EXPR_INTEGER, NULL, NULL);
-    if (node == NULL) {
+    if (!node) {
         perror("Error allocating space for expression node");
         return NULL;
     }
@@ -22,7 +22,7 @@ struct expr* expr_create_integer_literal(int i) {
 
 struct expr* expr_create_char_literal(char ch) {
     struct expr* node = expr_create(EXPR_CHARACTER, NULL, NULL);
-    if (node == NULL) {
+    if (!node) {
         perror("Error allocating space for expression node");
         return NULL;
     }
@@ -37,7 +37,7 @@ struct expr* expr_create_char_literal(char ch) {
 
 struct expr* expr_create_boolean_literal(int b) {
     struct expr* node = expr_create(EXPR_BOOLEAN, NULL, NULL);
-    if (node == NULL) {
+    if (!node) {
         perror("Error allocating space for expression node");
         return NULL;
     }
@@ -52,7 +52,7 @@ struct expr* expr_create_boolean_literal(int b) {
 
 struct expr* expr_create_string_literal(char* str) {
     struct expr* node = (struct expr*)malloc(sizeof(struct expr));
-    if (node == NULL) {
+    if (!node) {
         perror("Error allocating space for expression node");
         return NULL;
     }
@@ -90,13 +90,13 @@ struct expr* expr_create(expr_t kind, struct expr* left, struct expr* right) {
 
 struct decl* decl_create(char* name, struct type* type, struct expr* value, struct stmt* code, struct decl* next) {
     struct decl* node = (struct decl*)malloc(sizeof(struct decl));
-    if (node == NULL) {
+    if (!node) {
         perror("Error allocating space for desclaration node");
         return NULL;
     }
 
     node->name = strdup(name);
-    if (node->name == NULL) {
+    if (!node->name) {
         fprintf(stderr, "Error: Unable to duplicate name");
         return NULL;
     }
@@ -142,6 +142,7 @@ type_t get_type(Token* token) {
 
         case TOKEN_VOID:
             return TYPE_VOID;
+
 
         default:
             fprintf(stderr, "Error: Encountered unknown token type\n");
@@ -226,6 +227,8 @@ expr_t get_expr_type(Token* token) {
 
 
 struct expr* parse_factor(Token* tokens, int* tokenIdx) {
+    struct expr* expr_node = NULL;
+
     switch(tokens[*tokenIdx].type) {
         case TOKEN_INT_LITERAL:
             (*tokenIdx)++;
@@ -233,7 +236,7 @@ struct expr* parse_factor(Token* tokens, int* tokenIdx) {
 
         case TOKEN_ID:
             (*tokenIdx)++;
-            struct expr* expr_node = expr_create(EXPR_NAME, NULL, NULL);
+            expr_node = expr_create(EXPR_NAME, NULL, NULL);
             expr_node->name = strdup(tokens[*tokenIdx-1].value.string);
 
             if (tokens[*tokenIdx].type == TOKEN_INCREMENT ||
@@ -247,15 +250,25 @@ struct expr* parse_factor(Token* tokens, int* tokenIdx) {
 
         case TOKEN_LEFT_PARENTHESES:
             (*tokenIdx)++;
-            struct expr* expr = parse_expression(tokens, tokenIdx);
+            expr_node= parse_expression(tokens, tokenIdx);
             if (tokens[*tokenIdx].type != TOKEN_RIGHT_PARENTHESES) {
                 fprintf(stderr, "Error: Mismatched parentheses expected ')'\n");
                 return NULL;
             }
 
             (*tokenIdx)++;
-            return expr;
-            
+            return expr_node;
+
+        case TOKEN_LEFT_BRACKET:
+            (*tokenIdx)++;
+            expr_node = parse_expression(tokens, tokenIdx);
+            if (tokens[*tokenIdx].type != TOKEN_RIGHT_BRACKET) {
+                fprintf(stderr, "Error: Mismatched brackets, expected ']'\n");
+                return NULL;
+            }
+            (*tokenIdx)++;
+            return expr_node;
+
         case TOKEN_ASSIGNMENT:
         case TOKEN_GREATER:
         case TOKEN_LESS:
@@ -353,12 +366,12 @@ struct stmt* parse_block(Token* tokens, int* tokenIdx) {
 
     while (tokens[*tokenIdx].type != TOKEN_RIGHT_BRACE) {
         struct stmt* new_stmt = parse_statement(tokens, tokenIdx);
-        if (new_stmt == NULL) {
+        if (!new_stmt) {
             fprintf(stderr, "Error: Unable to parse new statement\n");
             return NULL;
         }
 
-        if (head == NULL) {
+        if (!head) {
             head = new_stmt;
             current = new_stmt;
         } else {
@@ -376,8 +389,9 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
     struct stmt* stmt = NULL;
 
     switch (tokens[*tokenIdx].type) {
+        case TOKEN_CHAR:
         case TOKEN_INT: {
-            type_t type_kind = get_type(&tokens[*tokenIdx]);   
+            type_t kind = get_type(&tokens[*tokenIdx]);   
             (*tokenIdx)++;
 
             if (tokens[*tokenIdx].type != TOKEN_ID) {
@@ -388,20 +402,23 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
             char* id = strdup(tokens[*tokenIdx].value.string);
             (*tokenIdx)++;
 
-            struct type* var_type = (struct type*)malloc(sizeof(struct type));
-            var_type->kind = type_kind;
-            var_type->subtype = NULL;
-            var_type->params = NULL;
+            struct type* var_type = type_create(kind, NULL, NULL);
+            if (!var_type) return NULL;
 
-            struct decl* decl = decl_create(id, var_type, NULL, NULL, NULL);
+            struct decl* decl = NULL;
 
             if (tokens[*tokenIdx].type == TOKEN_ASSIGNMENT) {
+                decl = decl_create(id, var_type, NULL, NULL, NULL);
                 (*tokenIdx)++;
                 decl->value = parse_expression(tokens, tokenIdx);
+                stmt = stmt_create(STMT_DECL, decl, NULL, NULL, NULL, NULL, NULL, NULL);
+            } else if (tokens[*tokenIdx].type == TOKEN_LEFT_BRACKET) {
+                (*tokenIdx)++;
+                decl = parse_array(tokens, tokenIdx, id, var_type);
+                // printf("Current token type: %d\n", tokens[*tokenIdx].type);
+                stmt = stmt_create(STMT_DECL, decl, NULL, NULL, NULL, NULL, NULL, NULL);
             }
-            printf("Token type: %d\n", tokens[*tokenIdx].type);
 
-            stmt = stmt_create(STMT_DECL, decl, NULL, NULL, NULL, NULL, NULL, NULL);
             break;
         }
 
@@ -556,6 +573,7 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
     }
 
     if (stmt->kind != STMT_IF && stmt->kind !=  STMT_FOR && stmt->kind != STMT_WHILE) {
+        printf("Token type: %d\n", tokens[*tokenIdx].type);
         if (tokens[*tokenIdx].type != TOKEN_SEMICOLON) {
             fprintf(stderr, "Error: Expected semicolon\n");
             return NULL;
@@ -653,6 +671,74 @@ struct decl* parse_function(Token* tokens, int* tokenIdx, char* name, struct typ
     return decl_create(name, func_type, NULL, body, NULL);
 } 
 
+struct expr* parse_array_init_list(Token* tokens, int* tokenIdx) {
+    struct expr* head = NULL;
+    struct expr* current = NULL;
+
+    while (tokens[*tokenIdx].type != TOKEN_RIGHT_BRACE) {
+        struct expr* init_expr = parse_expression(tokens, tokenIdx);
+        if (!init_expr) return NULL;
+
+        struct expr* new_node = expr_create(EXPR_ARRAY, init_expr, NULL);
+        if (!new_node) return NULL;
+
+        if (!head) {
+            head = new_node;
+            current = new_node;
+        } else {
+            current->right = new_node;
+            current = new_node;
+        }
+
+        if (tokens[*tokenIdx].type == TOKEN_COMMA) (*tokenIdx)++;
+    }
+
+    (*tokenIdx)++;
+
+    return head;
+}
+
+
+struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* element_type) {
+    if (!element_type) {
+        fprintf(stderr, "Error: Element type for array is not known\n");
+        return NULL;
+    }
+
+    struct type* array_type = type_create(TYPE_ARRAY, element_type, NULL);
+    if (!array_type) {
+        fprintf(stderr, "Error: Unable to create type for array\n");
+        return NULL;
+    }
+
+    struct expr* size_expr = parse_expression(tokens, tokenIdx);
+    if (!size_expr) {
+        fprintf(stderr, "Error: Unable to parse expression for array\n");
+        return NULL;
+    }
+
+    struct expr* array_expr = expr_create(EXPR_ARRAY, size_expr, NULL);
+    if (!array_expr) {
+        fprintf(stderr, "Error: Unable to create array expression\n");
+        return NULL;
+    }
+
+    (*tokenIdx)++;
+    if (tokens[*tokenIdx].type == TOKEN_SEMICOLON) {
+        return decl_create(name, array_type, array_expr, NULL, NULL);
+    } else if (tokens[*tokenIdx].type == TOKEN_ASSIGNMENT) {
+        (*tokenIdx)++;
+        if (tokens[*tokenIdx].type == TOKEN_LEFT_BRACE) {
+            (*tokenIdx)++;
+            array_expr->right = parse_array_init_list(tokens, tokenIdx);
+        }
+
+        return decl_create(name, array_type, array_expr, NULL, NULL);
+    }
+
+    return NULL;
+}
+
 struct decl* parse_declaration(Token* tokens, int* tokenIdx) {
     type_t kind = get_type(&tokens[*tokenIdx]);
     struct type* type = type_create(kind, NULL, NULL);
@@ -673,11 +759,14 @@ struct decl* parse_declaration(Token* tokens, int* tokenIdx) {
 
     (*tokenIdx)++;
 
+    struct expr* value = NULL;
     if (tokens[*tokenIdx].type == TOKEN_LEFT_PARENTHESES) {
         (*tokenIdx)++;
         return parse_function(tokens, tokenIdx, name, type);
+    } else if (tokens[*tokenIdx].type == TOKEN_LEFT_BRACKET) {
+        (*tokenIdx)++;
+        return parse_array(tokens, tokenIdx, name, type);
     } else {
-        struct expr* value = NULL;
         if (tokens[*tokenIdx].type == TOKEN_ASSIGNMENT) {
             (*tokenIdx)++;
             value = parse_expression(tokens, tokenIdx);
@@ -707,14 +796,13 @@ struct program* build_ast(Token* tokens) {
         }
 
         struct decl* new_decl = parse_declaration(tokens, &tokenIdx);
-        if (new_decl == NULL) {
+        if (!new_decl) {
             fprintf(stderr, "Fatal: Failed to parse declaration\n");
             free(program);
             exit(EXIT_FAILURE);
         }
 
-
-        if (head == NULL) {
+        if (!head) {
             head = new_decl;
             current = new_decl;
         } else {
@@ -730,14 +818,14 @@ struct program* build_ast(Token* tokens) {
 }
 
 void free_node(struct decl* declaration) {
-    if (declaration == NULL) return;
+    if (!declaration) return;
 
     free(declaration->name);
 
-    if (declaration->type != NULL) {
+    if (declaration->type) {
         free(declaration->type->subtype);
 
-        while (declaration->type->params != NULL) {
+        while (declaration->type->params) {
             struct param_list* param_next = declaration->type->params->next;
             free(declaration->type->params->name);
             free(declaration->type->params->type);
@@ -748,8 +836,8 @@ void free_node(struct decl* declaration) {
         free(declaration->type);   
     }   
 
-    if (declaration->value != NULL) {
-        while (declaration->value->left != NULL) {
+    if (declaration->value) {
+        while (declaration->value->left) {
             struct expr* expr_next = declaration->value->left->left;
 
             free(declaration->value->left->name);
@@ -760,7 +848,7 @@ void free_node(struct decl* declaration) {
             declaration->value->left = expr_next;
         }
 
-        while (declaration->value->right != NULL) {
+        while (declaration->value->right) {
             struct expr* expr_next = declaration->value->right->right;
             
             free(declaration->value->right->name);
@@ -776,7 +864,7 @@ void free_node(struct decl* declaration) {
         free(declaration->value);
     }
 
-    while (declaration->code != NULL) {
+    while (declaration->code) {
         struct stmt* stmt_next = declaration->code->next;
 
         free(declaration->code->decl);
@@ -793,9 +881,9 @@ void free_node(struct decl* declaration) {
 }
 
 void free_ast(struct program* root) {
-    if (root == NULL) return;
+    if (!root) return;
 
-    while (root->declaration != NULL) {
+    while (root->declaration) {
         struct decl* next = root->declaration->next;
         free_node(root->declaration);
         root->declaration = next;
@@ -846,6 +934,17 @@ void print_expr(struct expr* expr, int indent) {
     for (int i = 0; i < indent; i++) printf("  ");
     
     switch(expr->kind) {
+        case EXPR_ARRAY:
+            printf("ARRAY:\n");
+            for (int i = 0; i < indent + 1; i++) printf(" ");
+                printf("SIZE:\n");
+            print_expr(expr->left, indent + 2);
+            if (expr->right) {
+                for (int i = 0; i < indent + 1; i++) printf(" ");
+                    printf("INIT VALUES:\n");
+                    print_expr(expr->right, indent + 2);
+            }
+            break;
         case EXPR_NAME:
             printf("NAME: %s\n", expr->name);
             break;
