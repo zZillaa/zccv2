@@ -8,17 +8,35 @@
 #include <string.h>
 
 #define MAX_DAG_SIZE 1000
+#define UNION_INITIALIZER(val) ((union { const char* name; double float_value; int integer_value; }){ .name = (val)})
 
 typedef enum {
-	DAG_ASSIGN,
 	DAG_IADD,
 	DAG_ISUB,
 	DAG_IMUL,
 	DAG_IDIV,
+
+	DAG_IADD_AND_ASSIGN,
+	DAG_ISUB_AND_ASSIGN,
+	DAG_IMUL_AND_ASSIGN,
+	DAG_IDIV_AND_ASSIGN,
+
+	DAG_INCREMENT,
+	DAG_DECREMENT,
+
+	DAG_LESS,
+	DAG_GREATER,
+	DAG_LESS_OR_EQUAL,
+	DAG_GREATER_OR_EQUAL,
+	DAG_EQUAL,
+	DAG_NOT_EQUAL,
+
+	DAG_ASSIGN,
 	DAG_NAME,
 	DAG_FLOAT_VALUE,
 	DAG_INTEGER_VALUE,
 	DAG_RETURN,
+	DAG_ARRAY,
 	DAG_IF,
 	DAG_LOOP
 } dag_kind_t;
