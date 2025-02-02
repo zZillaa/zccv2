@@ -1,11 +1,6 @@
 #include "dag.h"
 
-struct dag_node* create_dag_node(dag_kind_t kind, struct dag_node* left, struct dag_node* right, 
-union {
-	const char* name;
-	double float_value;
-	int integer_value;
-} u) {
+struct dag_node* create_dag_node(dag_kind_t kind, struct dag_node* left, struct dag_node* right, dag_node_u u) {
 
 	struct dag_node* node = malloc(sizeof(struct dag_node));
 	if (!node) {
@@ -49,8 +44,6 @@ bool dag_node_equals(struct dag_node* a, struct dag_node* b) {
 		
 		case DAG_NAME:
 			return strcmp(a->u.name, b->u.name) == 0;
-		case DAG_FLOAT_VALUE:
-			return a->u.float_value == b->u.float_value;
 		case DAG_INTEGER_VALUE:
 			return a->u.integer_value == b->u.integer_value;
 		case DAG_RETURN:
@@ -62,9 +55,7 @@ bool dag_node_equals(struct dag_node* a, struct dag_node* b) {
 	}
 }
 
-struct dag_node* find_or_create_dag_node( struct dag_array* array, dag_kind_t kind, 
-										  struct dag_node* left, struct dag_node* right, 
-										  union { const char* name;double float_value;int integer_value; } u) {
+struct dag_node* find_or_create_dag_node( struct dag_array* array, dag_kind_t kind, struct dag_node* left, struct dag_node* right, dag_node_u u) {
 
 	struct dag_node* temp = create_dag_node(kind, left, right, u);
 	if (!temp) return NULL;
@@ -102,19 +93,13 @@ struct dag_node* build_dag_from_expr(struct expr* e, struct dag_array* dag) {
 
 	switch (e->kind) {
 		case EXPR_INTEGER: {
-			union { const char* name; double float_value; int integer_value; } u;
+			dag_node_u u;
 			u.integer_value = e->integer_value;
 			return find_or_create_dag_node(dag, DAG_INTEGER_VALUE, NULL, NULL, u);
 		}
 
-		case EXPR_FLOAT: {
-			union { const char* name; double float_value; int integer_value; } u;
-			u.float_value = e->float_value;
-			return find_or_create_dag_node(dag, DAG_FLOAT_VALUE, NULL, NULL, u);
-		}
-
 		case EXPR_NAME: {
-			union { const char* name; double float_value; int integer_value; } u;
+			dag_node_u u;
 			u.name = strdup(e->name);
 
 			struct dag_node* node = find_or_create_dag_node(dag, DAG_NAME, NULL, NULL, u);
@@ -124,59 +109,56 @@ struct dag_node* build_dag_from_expr(struct expr* e, struct dag_array* dag) {
 			return node;
 		}
 
-		case EXPR_ARRAY:
-			return find_or_create_dag_node(dag, DAG_ARRAY, left, right, UNION_INITIALIZER(0));
-
 		case EXPR_ASSIGNMENT:
-			return find_or_create_dag_node(dag, DAG_ASSIGN, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_ASSIGN, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_LESS:
-			return find_or_create_dag_node(dag, DAG_LESS, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_LESS, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_GREATER:
-			return find_or_create_dag_node(dag, DAG_GREATER, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_GREATER, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_GREATER_EQUAL:
-			return find_or_create_dag_node(dag, DAG_GREATER_OR_EQUAL, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_GREATER_OR_EQUAL, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_LESS_EQUAL:
-			return find_or_create_dag_node(dag, DAG_LESS_OR_EQUAL, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_LESS_OR_EQUAL, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_EQUAL:
-			return find_or_create_dag_node(dag, DAG_EQUAL, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_EQUAL, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_NOT_EQUAL:
 			return find_or_create_dag_node(dag, DAG_NOT_EQUAL, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_DECREMENT:
-			return find_or_create_dag_node(dag, DAG_DECREMENT, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_DECREMENT, left, right, UNION_INITIALIZER(0));
 		
 		case EXPR_INCREMENT:  
-			return find_or_create_dag_node(dag, DAG_INCREMENT, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_INCREMENT, left, right, UNION_INITIALIZER(0));
 		
 		case EXPR_ADD_AND_ASSIGN:
-			return find_or_create_dag_node(dag, DAG_IADD_AND_ASSIGN, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_IADD_AND_ASSIGN, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_SUB_AND_ASSIGN:
-			return find_or_create_dag_node(dag, DAG_ISUB_AND_ASSIGN, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_ISUB_AND_ASSIGN, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_MUL_AND_ASSIGN:
-			return find_or_create_dag_node(dag, DAG_IMUL_AND_ASSIGN, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_IMUL_AND_ASSIGN, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_DIV_AND_ASSIGN:
-			return find_or_create_dag_node(dag, DAG_IDIV_AND_ASSIGN, left, right, UNION_INITIALZER(0));
+			return find_or_create_dag_node(dag, DAG_IDIV_AND_ASSIGN, left, right, UNION_INITIALIZER(0));
 
 		case EXPR_ADD:
-            return find_or_create_dag_node(dag, DAG_IADD, left, right, UNION_INITIALZER(0));
+            return find_or_create_dag_node(dag, DAG_IADD, left, right, UNION_INITIALIZER(0));
 
         case EXPR_SUB:
-            return find_or_create_dag_node(dag, DAG_ISUB, left, right, UNION_INITIALZER(0));
+            return find_or_create_dag_node(dag, DAG_ISUB, left, right, UNION_INITIALIZER(0));
 
         case EXPR_MUL:
-            return find_or_create_dag_node(dag, DAG_IMUL, left, right, UNION_INITIALZER(0));
+            return find_or_create_dag_node(dag, DAG_IMUL, left, right, UNION_INITIALIZER(0));
 
         case EXPR_DIV:
-            return find_or_create_dag_node(dag, DAG_IDIV, left, right, UNION_INITIALZER(0));
+            return find_or_create_dag_node(dag, DAG_IDIV, left, right, UNION_INITIALIZER(0));
 
         default:
         	fprintf(stderr, "Error: Unhandled expression kind: %d\n", e->kind);
@@ -208,7 +190,7 @@ void build_dag_from_stmt(struct stmt* s, struct dag_array* dag) {
 			case STMT_FOR:
 				if (s->init_expr) build_dag_from_expr(s->init_expr, dag);
 				if (s->expr) build_dag_from_expr(s->expr, dag);
-				if (s->next_expr) build_dag_from_stmt(s->next_expr, dag);
+				if (s->next_expr) build_dag_from_expr(s->next_expr, dag);
 				build_dag_from_stmt(s->body, dag);
 				break;
 			case STMT_BLOCK:
