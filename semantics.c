@@ -164,6 +164,11 @@ bool is_symbol_redeclared(struct symbol_table* table, char* name) {
 }
 
 struct symbol* scope_lookup(struct stack* stack, char* name, int* found_scope) {
+	if (!name) {
+		fprintf(stderr, "Error: Invalid name\n");
+		return NULL;
+	}
+
 	if (!stack || stack->top < 0) {
 		fprintf(stderr, "Error: Invalid stack state in scope_lookup\n");
 		return NULL;
@@ -174,7 +179,6 @@ struct symbol* scope_lookup(struct stack* stack, char* name, int* found_scope) {
 			fprintf(stderr, "Error: Null symbol table at level %d\n", i);
 			continue;
 		}
-
 		struct symbol* current = stack->symbol_tables[i]->symbol;
 		while (current) {
 			if (strcmp(current->name, name) == 0) {
@@ -232,9 +236,10 @@ void param_list_resolve(struct param_list* params, struct stack* stack) {
 void expr_resolve(struct expr* expr, struct stack* stack) {
     if (!expr) return;
 
+    int found_scope = -1;
+
     switch (expr->kind) {
         case EXPR_NAME: {
-        	int found_scope = -1;
         	struct symbol* symbol = scope_lookup(stack, expr->name, &found_scope);
         	if (!symbol) {
         		fprintf(stderr, "Error: undefined symbol '%s'\n", expr->name);
@@ -244,6 +249,22 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
             expr->symbol = symbol;
             break;
         }
+
+    	case EXPR_ARRAY: {
+    		struct symbol* symbol = scope_lookup(stack, expr->name, &found_scope);
+    		if (!symbol) {
+    			fprintf(stderr, "Error: Undefined symbol '%s'\n", expr->name);
+    		} else {
+    			expr_resolve(expr->left, stack);
+    			while (expr->right) {
+    				struct expr* next = expr->right->right;
+    				expr_resolve(expr->right, stack);
+    				expr->right = next;
+    			}
+    		}
+    		expr->symbol = symbol;
+    		break;
+    	} 
 
     	case EXPR_INCREMENT:
     	case EXPR_DECREMENT: {
@@ -517,10 +538,19 @@ bool type_equals(struct type* a, struct type* b) {
 
 				return (a_params == NULL && b_params == NULL) && type_equals(a->subtype, b->subtype);
 
+			case TYPE_ARRAY:
+				if (!a->subtype || !b->subtype) {
+					printf("Warning: Array type comparison with null subtype\n");
+					return false;
+				}
+				return type_equals(a->subtype, b->subtype);
+
 			default:
 				return false;
 		}
 	}
+
+	return false;
 }
 
 struct type* type_create(type_t kind, struct type* subtype, struct param_list* params) {
@@ -598,6 +628,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
     	fprintf(stderr, "Warning: Attempting to typecheck unresolved symbol\n");
     	return type_create(TYPE_UNKNOWN, NULL, NULL);
     }
+
     struct type* lt = e->left ? expr_typecheck(e->left, stack) : NULL;
     struct type* rt = e->right ? expr_typecheck(e->right, stack) : NULL;
     struct type* result = NULL;
@@ -619,6 +650,14 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
     	case EXPR_INTEGER:
     		result = type_create(TYPE_INTEGER, NULL, NULL);
     		break; 
+
+    	case EXPR_ARRAY:
+    		if (!e->symbol) {
+    			fprintf(stderr, "Error: Symbol '%s' unresolved\n", e->name);
+    			return type_create(TYPE_UNKNOWN, NULL, NULL);
+    		}
+    		result = type_copy(e->symbol->type);
+    		break;
 
         case EXPR_NAME:
             if (!e->symbol) {
@@ -803,6 +842,12 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
 			if (d->value) {
 				struct type* t = expr_typecheck(d->value, stack);
 				if (!type_equals(t, d->symbol->type)) {
+					printf("t type: %d (subtype: %d) and 'd->symbol->type': %d (subtype: %d)\n", 
+						t->kind,
+						t->subtype ? t->subtype->kind : - 1,
+						d->symbol->type->kind,
+						d->symbol->type->subtype ? d->symbol->type->subtype->kind : -1);
+
 					fprintf(stderr, "Error: Type mismatch in declaration\n");
 				}
 				type_delete(t);

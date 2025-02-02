@@ -648,6 +648,8 @@ struct decl* parse_function(Token* tokens, int* tokenIdx, char* name, struct typ
         return NULL;
     }
 
+    
+
     struct param_list* params = parse_parameters(tokens, tokenIdx);
     struct type* func_type = type_create(TYPE_FUNCTION, return_type, params);
 
@@ -679,15 +681,15 @@ struct expr* parse_array_init_list(Token* tokens, int* tokenIdx) {
         struct expr* init_expr = parse_expression(tokens, tokenIdx);
         if (!init_expr) return NULL;
 
-        struct expr* new_node = expr_create(EXPR_ARRAY, init_expr, NULL);
-        if (!new_node) return NULL;
+        // struct expr* new_node = expr_create(EXPR_ARRAY, init_expr, NULL);
+        // if (!new_node) return NULL;
 
         if (!head) {
-            head = new_node;
-            current = new_node;
+            head = init_expr;
+            current = init_expr;
         } else {
-            current->right = new_node;
-            current = new_node;
+            current->right = init_expr;
+            current = init_expr;
         }
 
         if (tokens[*tokenIdx].type == TOKEN_COMMA) (*tokenIdx)++;
@@ -714,14 +716,18 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
     struct expr* size_expr = parse_expression(tokens, tokenIdx);
     if (!size_expr) {
         fprintf(stderr, "Error: Unable to parse expression for array\n");
+        type_delete(array_type);
         return NULL;
     }
 
     struct expr* array_expr = expr_create(EXPR_ARRAY, size_expr, NULL);
     if (!array_expr) {
         fprintf(stderr, "Error: Unable to create array expression\n");
+        type_delete(array_type);
         return NULL;
     }
+
+    array_expr->name = strdup(name);
 
     (*tokenIdx)++;
     if (tokens[*tokenIdx].type == TOKEN_SEMICOLON) {
@@ -733,8 +739,13 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
             array_expr->right = parse_array_init_list(tokens, tokenIdx);
         }
 
-        return decl_create(name, array_type, array_expr, NULL, NULL);
+        // adding this bit so expr name can have decl name
+        struct decl* d = decl_create(name, array_type, array_expr, NULL, NULL);
+
+        return d;
     }
+
+    type_delete(array_type);
 
     return NULL;
 }
@@ -756,7 +767,6 @@ struct decl* parse_declaration(Token* tokens, int* tokenIdx) {
     }
 
     char* name = strdup(tokens[*tokenIdx].value.string);
-
     (*tokenIdx)++;
 
     struct expr* value = NULL;
