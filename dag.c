@@ -40,16 +40,40 @@ bool dag_node_equals(struct dag_node* a, struct dag_node* b) {
 		case DAG_IDIV:
 		case DAG_ISUB:
 		case DAG_IADD:
+		case DAG_IADD_AND_ASSIGN:
+		case DAG_ISUB_AND_ASSIGN:
+		case DAG_IMUL_AND_ASSIGN:
+		case DAG_IDIV_AND_ASSIGN:
+		case DAG_LESS:
+		case DAG_GREATER:
+		case DAG_LESS_OR_EQUAL:
+		case DAG_GREATER_OR_EQUAL:
+		case DAG_EQUAL:
+		case DAG_NOT_EQUAL:
+			return a->left == b->left && a->right == b->right;
+
+		case DAG_INCREMENT:
+		case DAG_DECREMENT:
+		case DAG_RETURN:
+			return a->left == b->left;
+
+		case DAG_IF:
+		case DAG_WHILE:
+		case DAG_FOR:
 			return a->left == b->left && a->right == b->right;
 		
 		case DAG_NAME:
 			return strcmp(a->u.name, b->u.name) == 0;
+
 		case DAG_INTEGER_VALUE:
 			return a->u.integer_value == b->u.integer_value;
-		case DAG_RETURN:
-		case DAG_IF:
-		case DAG_LOOP:
-			return a->left == b->left && a->right == b->right;
+
+		case DAG_BLOCK:
+			return a->left == b->left;
+		case DAG_EXPR:
+			return a->left == b->left;
+
+
 		default:
 			return false;
 	}
@@ -73,12 +97,13 @@ struct dag_node* find_or_create_dag_node( struct dag_array* array, dag_kind_t ki
 
 	if (array->size >= array->capacity) {
 		array->capacity *= 2;
-		void* temp = realloc(array->nodes, sizeof(struct dag_node*) * array->capacity);
-		if (!temp) {
+		array->nodes = realloc(array->nodes, sizeof(struct dag_node*) * array->capacity);
+		if (!array->nodes) {
+			fprintf(stderr, "Error: Failed to reallocate space for 'array->nodes'\n");
+			free((void*)temp->u.name);
 			free(temp);
 			return NULL;
 		}
-		array->nodes = temp;
 	}
 
 	array->nodes[array->size++] = temp;
@@ -171,28 +196,37 @@ void build_dag_from_stmt(struct stmt* s, struct dag_array* dag) {
 
 	while (s) {
 		switch (s->kind) {
+			case STMT_DECL:
+				if (s->decl) build_dag_from_decl(s->decl, dag);
+				break;
+
 			case STMT_EXPR:
 				build_dag_from_expr(s->expr, dag);
 				break;
+
 			case STMT_RETURN:
 				build_dag_from_expr(s->expr, dag);
 				break;
+
 			case STMT_IF:
 			case STMT_IF_ELSE:
 				build_dag_from_expr(s->expr, dag);
 				build_dag_from_stmt(s->body, dag);
 				if (s->else_body) build_dag_from_stmt(s->else_body, dag);
 				break;
+
 			case STMT_WHILE:
 				build_dag_from_expr(s->expr, dag);
 				build_dag_from_stmt(s->body, dag);
 				break;
+
 			case STMT_FOR:
 				if (s->init_expr) build_dag_from_expr(s->init_expr, dag);
 				if (s->expr) build_dag_from_expr(s->expr, dag);
 				if (s->next_expr) build_dag_from_expr(s->next_expr, dag);
 				build_dag_from_stmt(s->body, dag);
 				break;
+
 			case STMT_BLOCK:
 				build_dag_from_stmt(s->body, dag);
 				break;
@@ -229,4 +263,108 @@ struct dag_array* build_dag(struct program* ast) {
 	build_dag_from_decl(ast->declaration, dag);
 
 	return dag;
+}
+
+
+void print_dag_node(struct dag_node* node, int indent) {
+	if (!node) return;
+
+	for (int i = 0; i < indent; i++) {
+		printf("  ");
+	}
+
+	switch (node->kind) {
+		case DAG_INTEGER_VALUE:
+            printf("INTEGER(%d)\n", node->u.integer_value);
+            break;
+        case DAG_NAME:
+            printf("NAME(%s)\n", node->u.name);
+            break;
+        case DAG_ASSIGN:
+            printf("ASSIGN\n");
+            break;
+        case DAG_IADD:
+            printf("ADD\n");
+            break;
+        case DAG_ISUB:
+            printf("SUB\n");
+            break;
+        case DAG_IMUL:
+            printf("MUL\n");
+            break;
+        case DAG_IDIV:
+            printf("DIV\n");
+            break;
+        case DAG_INCREMENT:
+        	printf("INCREMENT\n");
+        	break;
+        case DAG_DECREMENT:
+        	printf("DECREMENT\n");
+        	break;
+
+        case DAG_DECL:
+        	printf("DECLARATION\n");
+        	break;
+        case DAG_EXPR:
+        	printf("EXPRESSION_STMT\n");
+        	break;
+        case DAG_IF_ELSE:
+        	printf("IF_ELSE\n");
+        	break;
+        case DAG_IF:
+        	printf("IF\n");
+        	break;
+        case DAG_FOR:
+        	printf("FOR\n");
+        	break;
+        case DAG_WHILE:
+        	printf("WHILE\n");
+        	break;
+        case DAG_RETURN:
+        	printf("RETURN\n");
+        	break;
+        case DAG_BLOCK:
+        	printf("BLOCK\n");
+        	break;
+        default:
+            printf("UNKNOWN NODE(%d)\n", node->kind);
+            break;
+    }
+
+    if (node->left) print_dag_node(node->left, indent + 1);
+    if (node->right) print_dag_node(node->right, indent + 1);
+}
+
+void print_dag(struct dag_array* dag) {
+	if (!dag) return;
+
+	printf("DAG with %d nodes:\n", dag->size);
+	for (int i = 0; i < dag->size; i++) {
+		printf("Node %d:\n", i);
+		print_dag_node(dag->nodes[i], 1);
+	}
+}
+
+void free_dag_node(struct dag_node* node) {
+	if (!node) return;
+
+	free_dag_node(node->left);
+	free_dag_node(node->right);
+
+	if (node->kind == DAG_NAME && node->u.name) {
+		free((void*)node->u.name);
+	}
+
+	free(node);
+}
+
+void free_dag_array(struct dag_array* array) {
+	if (!array) return;
+
+	for (int i = 0; i < array->size; i++) {
+		free(array->nodes[i]);
+	}
+
+	free(array->nodes);
+	free(array);
 }

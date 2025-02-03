@@ -8,7 +8,7 @@
 #include <string.h>
 
 #define MAX_DAG_SIZE 1000
-#define UNION_INITIALIZER(val) (dag_node_u ({ .name = (val)})
+#define UNION_INITIALIZER(val) ((dag_node_u){ .name = (val) })
 
 typedef enum {
 	DAG_IADD,
@@ -33,12 +33,17 @@ typedef enum {
 
 	DAG_ASSIGN,
 	DAG_NAME,
-	DAG_FLOAT_VALUE,
 	DAG_INTEGER_VALUE,
-	DAG_RETURN,
 	DAG_ARRAY,
+
+	DAG_DECL,
+	DAG_EXPR,
 	DAG_IF,
-	DAG_LOOP
+	DAG_IF_ELSE,
+	DAG_FOR,
+	DAG_WHILE,
+	DAG_BLOCK,
+	DAG_RETURN,
 } dag_kind_t;
 
 
@@ -55,13 +60,13 @@ struct dag_node {
 };
 
 struct dag_array {
-	struct dag_nodes** nodes;
+	struct dag_node** nodes;
 	int size;
 	int capacity;
 };
 
 struct dag_node* create_dag_node(dag_kind_t kind, struct dag_node* left, struct dag_node* right, dag_node_u u);
-struct dat_node* find_or_create_dag_node(struct dag_array* array, dag_kind_t kind, struct dag_node* left, struct dag_node* right, dag_node_u u); 
+struct dag_node* find_or_create_dag_node(struct dag_array* dag, dag_kind_t kind, struct dag_node* left, struct dag_node* right, dag_node_u u); 
 struct dag_array* create_dag_array(int capacity);
 bool dag_node_equals(struct dag_node* a, struct dag_node* b);
 
@@ -70,4 +75,9 @@ void build_dag_from_stmt(struct stmt* s, struct dag_array* dag);
 void build_dag_from_decl(struct decl* d, struct dag_array* dag);
 struct dag_array* build_dag(struct program* ast);
 
+
+void free_dag_node(struct dag_node* node);
+void free_dag_array(struct dag_array* dag);
+void print_dag_node(struct dag_node* node, int indent);
+void print_dag(struct dag_array* dag);
 #endif
