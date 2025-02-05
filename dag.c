@@ -120,18 +120,56 @@ struct dag_node* build_dag_from_expr(struct expr* e, struct dag_array* dag) {
 		case EXPR_INTEGER: {
 			dag_node_u u;
 			u.integer_value = e->integer_value;
+			printf("I am here, INT VALUE: '%d'\n", u.integer_value);
 			return find_or_create_dag_node(dag, DAG_INTEGER_VALUE, NULL, NULL, u);
 		}
 
 		case EXPR_NAME: {
 			dag_node_u u;
 			u.name = strdup(e->name);
+			if (!u.name) return NULL;
 
 			struct dag_node* node = find_or_create_dag_node(dag, DAG_NAME, NULL, NULL, u);
 			if (node && node->u.name != u.name) {
 				free((void*)u.name);
 			}
 			return node;
+		}
+
+		case EXPR_ARRAY: {
+			dag_node_u u;
+			u.name = strdup(e->name);
+			if (!u.name) return NULL;
+
+			struct dag_node* size_node = NULL;
+			if (e->left) {
+				size_node = build_dag_from_expr(e->left, dag);
+			}
+
+			struct dag_node* head = NULL;
+			struct dag_node* current = NULL;
+			struct expr* e_curr = e->right;
+
+			while (e_curr) {
+				struct dag_node* node = build_dag_from_expr(e_curr, dag);
+				if (!node) fprintf(stderr, "Error: Failed to build dag node from expr\n");
+
+				if (!head) {
+					head = node;
+					current = node;
+				} else {
+					current->right = node;
+					current = current->right;
+				}
+
+				e_curr = e_curr->right;
+			}
+			
+			struct dag_node* array_node = find_or_create_dag_node(dag, DAG_ARRAY, size_node, head, u);
+			if (array_node && array_node->u.name != u.name) {
+				free((void*)u.name);
+			}
+			return array_node;
 		}
 
 		case EXPR_ASSIGNMENT:
@@ -274,6 +312,26 @@ void print_dag_node(struct dag_node* node, int indent) {
 	}
 
 	switch (node->kind) {
+		case DAG_ARRAY:
+			printf("ARRAY:\n");
+
+			for (int i = 0; i < indent + 1; i++) printf(" ");
+
+			for (int i = 0; i < indent + 1; i++) printf(" ");
+				printf("SIZE:\n");
+			if (node->left) print_dag_node(node->left, indent + 2);
+
+			if (node->right) {
+				for (int i = 0; i < indent + 1; i++) printf(" ");
+					printf("INIT VALUES:\n");
+
+				while (node->right) {
+					print_dag_node(node->right, indent + 2);
+					struct dag_node* next = node->right->right;
+					node->right = next;
+				}
+			}
+			break; 
 		case DAG_INTEGER_VALUE:
             printf("INTEGER(%d)\n", node->u.integer_value);
             break;
@@ -331,8 +389,8 @@ void print_dag_node(struct dag_node* node, int indent) {
             break;
     }
 
-    if (node->left) print_dag_node(node->left, indent + 1);
-    if (node->right) print_dag_node(node->right, indent + 1);
+    // if (node->left) print_dag_node(node->left, indent + 1);
+    // if (node->right) print_dag_node(node->right, indent + 1);
 }
 
 void print_dag(struct dag_array* dag) {

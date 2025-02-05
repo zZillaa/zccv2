@@ -255,11 +255,12 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
     		if (!symbol) {
     			fprintf(stderr, "Error: Undefined symbol '%s'\n", expr->name);
     		} else {
-    			expr_resolve(expr->left, stack);
-    			while (expr->right) {
-    				struct expr* next = expr->right->right;
-    				expr_resolve(expr->right, stack);
-    				expr->right = next;
+    			if (expr->left) expr_resolve(expr->left, stack);
+
+    			struct expr* current = expr->right;
+    			while (current) {
+    				expr_resolve(current, stack);
+    				current = current->right;
     			}
     		}
     		expr->symbol = symbol;
@@ -306,6 +307,8 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
             break;
         }
         case EXPR_INTEGER:
+        	printf("No need to resolve: '%d'\n", expr->integer_value);
+        	break;
         case EXPR_CHARACTER:
         case EXPR_BOOLEAN:
         case EXPR_STRING: {

@@ -681,9 +681,6 @@ struct expr* parse_array_init_list(Token* tokens, int* tokenIdx) {
         struct expr* init_expr = parse_expression(tokens, tokenIdx);
         if (!init_expr) return NULL;
 
-        // struct expr* new_node = expr_create(EXPR_ARRAY, init_expr, NULL);
-        // if (!new_node) return NULL;
-
         if (!head) {
             head = init_expr;
             current = init_expr;
@@ -737,9 +734,14 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
         if (tokens[*tokenIdx].type == TOKEN_LEFT_BRACE) {
             (*tokenIdx)++;
             array_expr->right = parse_array_init_list(tokens, tokenIdx);
+            printf("ARRAY INIT VALUES:\n");
+            while (array_expr->right) {
+                struct expr* next = array_expr->right->right;
+                printf("DEGENERATE TREE NODE VALUE: '%d'\n", array_expr->right->integer_value);
+                array_expr->right = next;
+            }
         }
 
-        // adding this bit so expr name can have decl name
         struct decl* d = decl_create(name, array_type, array_expr, NULL, NULL);
 
         return d;
@@ -930,6 +932,8 @@ void print_type(struct type* type, int indent) {
             }
             printf(")");
             break;
+        case TYPE_ARRAY:
+            printf("ARRAY");
         case TYPE_VOID:
             printf("void");
             break;
@@ -945,14 +949,21 @@ void print_expr(struct expr* expr, int indent) {
     
     switch(expr->kind) {
         case EXPR_ARRAY:
-            printf("ARRAY:\n");
+            printf("ARRAY:\n");for (int i = 0; i < indent + 1; i++) printf(" ");
+                //     printf("INIT VALUES:\n");
+                //     print_expr(expr->right, indent + 2);
             for (int i = 0; i < indent + 1; i++) printf(" ");
                 printf("SIZE:\n");
             print_expr(expr->left, indent + 2);
             if (expr->right) {
                 for (int i = 0; i < indent + 1; i++) printf(" ");
                     printf("INIT VALUES:\n");
+                //     print_expr(expr->right, indent + 2);
+                while (expr->right) {
                     print_expr(expr->right, indent + 2);
+                    struct expr* next = expr->right->right;
+                    expr->right = next;
+                }
             }
             break;
         case EXPR_NAME:
