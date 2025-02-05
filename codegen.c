@@ -41,7 +41,7 @@ struct scratch_registers* create_scratch_registers(int capacity) {
 
 int scratch_alloc(struct scratch_resgisters* s, const char* name) {
 	for (int r = 0; r < array->size; r++) {
-		struct register* current = s->array[i]; 
+		struct register* current = s->array[r]; 
 		if (strcmp(current->name, name) == 0 && curent->state == FREE) {
 			return r;
 		}	
