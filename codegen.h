@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 #define MAX_SCRATCH_REGISTERS 16
+#define REGISTER_WIDTH 64
 
 // Every time a expr_codegen is invoked, scracth_free should be invoked
 
@@ -30,7 +32,7 @@ typedef enum {
 } register_t;
 
 struct register {
-	enum {
+	typedef enum {
 	 FREE, 
 	 USED 
 	} state;
@@ -41,16 +43,18 @@ struct register {
 };
 
 struct scratch_registers {
-	struct register** array;
+	struct register* registers[MAX_SCRATCH_REGISTERS];
 	int size;
 	int capacity;
 }
 
 
-int scratch_alloc();
-void scratch_free( int r);
-const char* scratch_name( int r);
+int scratch_alloc(struct scratch_registers* s, const char* name);
+void scratch_free(struct scratch_registers* s, int r);
+const char* scratch_name(struct scratch_registers* s, int r);
+struct register* create_register(register_t kind, );
 struct scratch_registers* create_scratch_registers();
+
 // Need to generate a large number of unique, anonymous labels that indicate the targets of jumps and conditional branches.
 
 int label_create();

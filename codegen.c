@@ -26,7 +26,7 @@ struct scratch_registers* create_scratch_registers(int capacity) {
 		return NULL;
 	}
 
-	scratch_registers_array->array = malloc(sizeof(struct register* ) * capacity);
+	scratch_registers_array->registers = malloc(sizeof(struct register* ) * capacity);
 	if (!scratch_registers_array->array) {
 		fprintf(stderr, "Error: Failed to allocate space for registers array\n");
 		return NULL;
@@ -40,39 +40,33 @@ struct scratch_registers* create_scratch_registers(int capacity) {
 }
 
 int scratch_alloc(struct scratch_resgisters* s, const char* name) {
-	for (int r = 0; r < array->size; r++) {
-		struct register* current = s->array[r]; 
-		if (strcmp(current->name, name) == 0 && curent->state == FREE) {
+	for (int r = 0; r < s->size; r++) {
+		struct register* current = s->array[r];
+		if (current->state == FREE) {
+			current->state = USED;
 			return r;
-		}	
+		}
 	}
-
 	return -1;
 }
 
 void scratch_free(struct scratch_registers* s ,int r) {
-	for (int i = 0; i < s->size; i++) {
-		if (i == r) {
-			s->array[r]->state = FREE;
-			free((void*)s->array[r]->name);
-			free(s->array[r]);
-		}
-	}
+	s->registers[r]->state = FREE;
 }
 
 
 const char* scratch_name(struct scratch_registers* s, int r) {
-	for (int i = 0; i < s->size; i++) {
-		if (i == r) {
-			return s->array[r]->name;
-		}
-	}
+	if (!s) return NULL;
 
-	return NULL;
+	return s->registers[r]->name;
 }
 
 const char* symbol_codegen(struct symbol* s) {
 	if (!s) return NULL;
+
+	const char* symbol_address = NULL;
+	symbol_address = &s;
+	return symbol_address;
 
 }
 
@@ -115,6 +109,9 @@ void expr_codegen(struct expr* e) {
 
 			break;
 
+		case EXPR_MUL:
+		case EXPR_DIV:
+		case EXPR_SUB:
 		case EXPR_ADD:
 			expr_codegen(e->left);
 			expr_codegen(e->right);
@@ -125,6 +122,15 @@ void expr_codegen(struct expr* e) {
 			scratch_free(e->left->reg);
 			break;
 
+		case EXPR_INCREMENT:
+		case EXPR_DECREMENT:
+			expr_codegen(e->left);
+			printf("MOVQ %s, %s\n",
+				scratch_name(e->left->reg),
+				scratch_name(e->right->reg));
+			e->reg = e->right->reg;
+			scratch_free(e->left->reg);
+			break;
 
 
 		case EXPR_ASSIGNMENT:
@@ -134,10 +140,6 @@ void expr_codegen(struct expr* e) {
 				symbol_codegen(e->right->symbol));
 			e->reg = e->left->reg;
 			break;
-
-
-
-			
 	}
 }
 
