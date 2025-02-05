@@ -14,6 +14,7 @@ typedef enum TokenType {
     TOKEN_WHILE,
     TOKEN_RETURN,
     TOKEN_VOID,
+    TOKEN_STRUCT,
     
     TOKEN_ID,
     TOKEN_INT_LITERAL,
@@ -79,6 +80,7 @@ typedef enum {
     KEYWORD_WHILE,
     KEYWORD_RETURN,
     KEYWORD_VOID,
+    KEYWORD_STRUCT,
     KEYWORD_UNKNOWN
 } keyword_t;
 

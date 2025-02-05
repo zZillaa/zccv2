@@ -7,7 +7,7 @@
 #define NUM_KEYWORDS 9
 // #include "parser.h"
 
-char* keywords[] = {"int", "char", "boolean", "if", "else", "for", "while", "return", "void"};
+char* keywords[] = {"int", "char", "boolean", "if", "else", "for", "while", "return", "void", "struct"};
 keyword_t get_keyword_type(char* str) {
     for (int i = 0; i < NUM_KEYWORDS; i++) {
         if (strcmp(str, keywords[i]) == 0) {

@@ -143,6 +143,9 @@ type_t get_type(Token* token) {
         case TOKEN_VOID:
             return TYPE_VOID;
 
+        case TOKEN_STRUCT:
+            return TYPE_STRUCT;
+
 
         default:
             fprintf(stderr, "Error: Encountered unknown token type\n");
@@ -751,6 +754,39 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
 
     return NULL;
 }
+
+// struct expr* parse_struct_members(Token* tokens, int* tokenIdx) {
+
+//     struct expr* head = NULL;
+//     struct expr* current = NULL;
+
+//     while (tokens[*tokenIdx].type != TOKEN_RIGHT_PARENTHESES) {
+//         struct expr* init_expr = parse_expression(tokens, tokenIdx);
+//         if (!init_expr) return NULL;
+
+//         if (!head) {
+//             head = init_expr;
+//             current = init_expr;
+//         } else {
+//             current->next = init_expr;
+//             current = current->next;
+//         }
+
+//         if (tokens[*tokenIdx].type == TOKEN_COMMA) (*tokenIdx)++;
+//     }
+
+//     (*tokenIdx)++;
+
+//     return headb
+// }
+
+// struct decl* parse_struct(Token* tokens, int* tokenIdx, char* tag) {
+//     struct expr* e = parse_struct_members(tokens, tokenIdx);  
+//     struct decl* d = decl_create(tag, NULL, e, NULL, NULL);
+
+//     return d;
+
+// }
 
 struct decl* parse_declaration(Token* tokens, int* tokenIdx) {
     type_t kind = get_type(&tokens[*tokenIdx]);
