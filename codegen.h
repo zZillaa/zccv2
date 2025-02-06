@@ -64,10 +64,10 @@ const char* label_name( int label );
 // Function to generate the address of a symbol
 // Returns a string which is a fragment of an instruction, representing the address computatio needed for a given symbol
 
-const char* symbol_codegen(struct symbol* s);
-void expr_codegen(struct expr* e);
-void stmt_codegen(struct stmt* s);
-void decl_codegen(struct decl* d);
+const char* symbol_codegen(struct scratch_registers* s, struct symbol* sym);
+void expr_codegen(struct scratch_registers* s, struct expr* e);
+void stmt_codegen(struct scratch_registers* s, struct stmt* s);
+void decl_codegen(struct scratch_registers* s, struct decl* d);
 
 
 // TODO

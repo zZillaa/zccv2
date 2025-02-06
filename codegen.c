@@ -64,92 +64,123 @@ const char* scratch_name(struct scratch_registers* s, int r) {
 const char* symbol_codegen(struct symbol* s) {
 	if (!s) return NULL;
 
-	const char* symbol_address = NULL;
-	symbol_address = &s;
-	return symbol_address;
+		
 
 }
 
-void stmt_codegen(struct stmt* s) {
-	if (!s) return;
+void stmt_codegen(struct scratch_registers* s, struct stmt* stmt) {
+	if (!stmt) return;
 
-	switch (s->kind) {
+	switch (stmt->kind) {
 		case STMT_EXPR:
-			expr_codegen(s->expr);
-			scratch_free(s->expr->reg);
+			expr_codegen(s, stmt->expr);
+			scratch_free(s, stmt->expr->reg);
 			break;
 
 		case STMT_DECL:
-			decl_codegen(s->decl);
+			decl_codegen(s, stmt->decl);
 			break;
 
 		case STMT_RETURN:
-			expr_codegen(s->expr);
-			printf("MOV %s, %%rax\n", scratch_name(s->expr->reg));
+			expr_codegen(s, stmt->expr);
+			printf("MOV %s, %%rax\n", scratch_name(s, stmt->expr->reg));
 			// printf("JMP .%s_epilogue\n", function_name);
 
-			scratch_free(s->expr->reg);
+			scratch_free(s, stmt->expr->reg);
 			break;
 
 
 	}
-	stmt_codegen(s->next);
+	stmt_codegen(stmt->next);
 
 }
 
-void expr_codegen(struct expr* e) {
+void expr_codegen(struct scratch_registers* s, struct expr* e) {
 	if (!e) return;
 
 	switch (e->kind) {
 		case EXPR_NAME:
 			e->reg = scratch_alloc();
 			printf("MOVQ %s, %s\n",
-				symbol_codegen(e->symbol),
-				scratch_name(e->reg));
+				symbol_codegen(s, e->symbol),
+				scratch_name(s, e->reg));
 
 			break;
 
-		case EXPR_MUL:
 		case EXPR_DIV:
-		case EXPR_SUB:
-		case EXPR_ADD:
-			expr_codegen(e->left);
-			expr_codegen(e->right);
-			printf("ADDQ %s, %s\n",
-				scratch_name(e->left->reg),
-				scratch_name(e->right->reg));
+			expr_codegen(s, e->left->reg);
+			printf("IDIVQ %s\n",
+				scratch_name(s, e->left->reg));
 			e->reg = e->right->reg;
-			scratch_free(e->left->reg);
+			scratch_name(s, e->left->reg);
+			break;
+
+		case EXPR_MUL:
+			expr_codegen(s, e->left->reg);
+			printf("IMULQ %s\n",
+				scratch_name(s, e->left->reg));
+			e->reg = e->right->reg;
+			scratch_name(s, e->left->reg);
+			break;
+		
+		case EXPR_SUB:
+			expr_codegen(s, e->left);
+			expr_codegen(s, e->right);
+			printf("SUBQ %s, %s\n",
+				scratch_name(s, e->left->reg),
+				scratch_name(s, e->right->reg));
+			e->reg = e->right->reg;
+			scratch_name(s, e->left->reg);
+			break;
+
+			break;
+		case EXPR_ADD:
+			expr_codegen(s, e->left);
+			expr_codegen(s, e->right);
+			printf("ADDQ %s, %s\n",
+				scratch_name(s, e->left->reg),
+				scratch_name(s, e->right->reg));
+			e->reg = e->right->reg;
+			scratch_free(s, e->left->reg);
 			break;
 
 		case EXPR_INCREMENT:
 		case EXPR_DECREMENT:
-			expr_codegen(e->left);
+			expr_codegen(s, e->left);
 			printf("MOVQ %s, %s\n",
-				scratch_name(e->left->reg),
-				scratch_name(e->right->reg));
+				scratch_name(s, e->left->reg),
+				scratch_name(s, e->right->reg));
 			e->reg = e->right->reg;
-			scratch_free(e->left->reg);
+			scratch_free(s, e->left->reg);
 			break;
 
 
 		case EXPR_ASSIGNMENT:
-			expr_codegen(e->left);
+			expr_codegen(s, e->left);
 			printf("MOVQ %s, %s\n",
-				scratch_name(e->left->reg);
-				symbol_codegen(e->right->symbol));
+				scratch_name(s, e->left->reg);
+				symbol_codegen(s, e->right->symbol));
 			e->reg = e->left->reg;
+			scratch_free(s, e->left->reg);
+			break;
+
+		case EXPR_FLOAT:
+		case EXPR_INTEGER:
+			expr_codegen(e);
+			printf("MOVQ %s, %s\n",
+				scratch_name(s, e->reg),
+				symbol_codegen(s, e->symbol));
 			break;
 	}
 }
 
-void decl_codegen(struct decl* d) {
+void decl_codegen(struct scratch_registers* s, struct decl* d) {
 	if (!d) return;
 
 	while (d) {
-		if (d->value) expr_codegen(d->value);
+		if (d->value) expr_codegen(s, d->value);
 
-		if (d->code) stmt_codegen(d->code);
+		if (d->code) stmt_codegen(s, d->code);
 
 		d = d->next;
 	}

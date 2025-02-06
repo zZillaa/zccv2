@@ -6,6 +6,7 @@
 #include "lexer.h"
 #include "ast.h"
 #include "dag.h"
+#include "codegen.h"
 
 long getFileSize(FILE* file) {
     fpos_t posIndicator;
@@ -77,10 +78,12 @@ int main(int argc, char **argv) {
         program_resolve(ast, stack);    
         program_typecheck(ast, stack);
 
-        struct dag_array* dag = build_dag(ast);
-        print_dag(dag);
+        decl_codegen(ast);
+        
+        // struct dag_array* dag = build_dag(ast);
+        // print_dag(dag);
 
-        free_dag_array(dag);
+        // free_dag_array(dag);
         free_stack(stack);
         free_ast(ast);
         free_tokens(tokens);
