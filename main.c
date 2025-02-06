@@ -78,8 +78,10 @@ int main(int argc, char **argv) {
         program_resolve(ast, stack);    
         program_typecheck(ast, stack);
 
-        decl_codegen(ast);
-        
+
+        struct scratch_registers* s = create_scratch_registers();
+        decl_codegen(s, ast);
+
         // struct dag_array* dag = build_dag(ast);
         // print_dag(dag);
 

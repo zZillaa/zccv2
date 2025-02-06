@@ -75,7 +75,6 @@ typedef enum {
     EXPR_ARG,
     
     EXPR_SUBSCRIPT,
-
     EXPR_INTEGER,
     EXPR_FLOAT,
     EXPR_CHARACTER,

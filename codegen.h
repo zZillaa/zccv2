@@ -5,11 +5,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+
 #define MAX_SCRATCH_REGISTERS 16
 #define REGISTER_WIDTH 64
 
 // Every time a expr_codegen is invoked, scracth_free should be invoked
-
+static int label_counter = 0;
 // 16(almost) general purpose registers
 typedef enum {
 	rax,
@@ -31,15 +32,16 @@ typedef enum {
 
 } register_t;
 
-struct register {
-	typedef enum {
-	 FREE, 
-	 USED 
-	} state;
+typedef enum {
+	REGISTER_FREE,
+	REGISTER_USED
+} register_state_t;
 
+struct register {
+	register_state_t state;
 	int64_t size;
 	const char* name;
-	register_t kind;
+	register_t type;
 };
 
 struct scratch_registers {
@@ -49,29 +51,19 @@ struct scratch_registers {
 }
 
 
-int scratch_alloc(struct scratch_registers* s, const char* name);
+struct register* create_register(register_t type, const char* name, register_state_t state);
+struct scratch_registers* create_scratch_registers();
+int scratch_alloc(struct scratch_registers* s);
 void scratch_free(struct scratch_registers* s, int r);
 const char* scratch_name(struct scratch_registers* s, int r);
-struct register* create_register(register_t kind, );
-struct scratch_registers* create_scratch_registers();
-
-// Need to generate a large number of unique, anonymous labels that indicate the targets of jumps and conditional branches.
 
 int label_create();
 const char* label_name( int label );
+// %rax & %rdx cannot be used for other purposes while a multiply is in progress.
 
-// symbol to code generation
-// Function to generate the address of a symbol
-// Returns a string which is a fragment of an instruction, representing the address computatio needed for a given symbol
-
-const char* symbol_codegen(struct scratch_registers* s, struct symbol* sym);
+const char* symbol_codegen(struct symbol* sym);
 void expr_codegen(struct scratch_registers* s, struct expr* e);
 void stmt_codegen(struct scratch_registers* s, struct stmt* s);
 void decl_codegen(struct scratch_registers* s, struct decl* d);
 
-
-// TODO
-// Add a reg field to the AST or DAG node structure, which will hold the number of a register returned by scratch_alloc
-// When visiting each node, emit an instruction and place into the reg field the number of the register containing that value.
-// When the node is no longer needed, call scratch_free to release
 #endif
