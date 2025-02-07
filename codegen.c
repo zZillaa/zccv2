@@ -1,15 +1,14 @@
 #include "codegen.h"
 
-struct register* create_register(register_t type, const char* name, register_state_t state) {
-	struct register* reg = malloc(sizeof(struct register));
+struct Register* create_register(const char* name, register_state_t state) {
+	struct Register* reg = malloc(sizeof(struct Register));
 	if (!reg) {
 		fprintf(stderr, "Error: Failed to allocate space for register\n");
 		return NULL;
 	}
 
 	reg->size = REGISTER_WIDTH;
-	reg->type = type;
-	reg->state = register_state_t;
+	reg->state = state;
 	reg->name = strdup(name);
 	if (!reg->name) {
 		fprintf(stderr, "Error: Failed to duplicate name for register\n");
@@ -78,7 +77,7 @@ const char* symbol_codegen(struct symbol* sym) {
 
 	static char buffer[32];
 
-	switch (s->kind) {
+	switch (sym->kind) {
 		case SYMBOL_LOCAL:
 			snprintf(buffer, sizeof(buffer), "-8(%%rbp)");
 			return buffer;
@@ -120,86 +119,86 @@ void stmt_codegen(struct scratch_registers* s, struct stmt* stmt) {
 
 
 	}
-	stmt_codegen(stmt->next);
+	stmt_codegen(s, stmt->next);
 
 }
 
-void expr_codegen(struct scratch_registers* s, struct expr* e) {
-	if (!e || !s) return;
+void expr_codegen(struct scratch_registers* sregs, struct expr* e) {
+	if (!e || !sregs) return;
 
 	int reg;
 	switch (e->kind) {
 		case EXPR_NAME:
-			reg = scratch_alloc(s);
+			reg = scratch_alloc(sregs);
 			if (reg >= 0) {
 				e->reg = reg;
 			printf("MOVQ %s, %s\n",
 				symbol_codegen(e->symbol),
-				scratch_name(s, e->reg));
+				scratch_name(sregs, e->reg));
 			}
 
 			break;
 
 		case EXPR_DIV:
-			expr_codegen(s, e->left);
-			expr_codegen(s, e->right);
+			expr_codegen(sregs, e->left);
+			expr_codegen(sregs, e->right);
 			if (e->left && e->left->reg >= 0) {
 				printf("IDIV %s\n",
-				scratch_name(s, e->left->reg));
+				scratch_name(sregs, e->left->reg));
 				e->reg = e->right->reg;
-				scratch_free(s, e->left->reg);
+				scratch_free(sregs, e->left->reg);
 			}
 			break;
 
 		case EXPR_MUL:
-			expr_codegen(s, e->left);
-			expr_codegen(s, e->right);
+			expr_codegen(sregs, e->left);
+			expr_codegen(sregs, e->right);
 			if (e->left && e->left->reg >= 0) {
 				printf("IMUL %s\n",
-					scratch_name(s, e->left->reg));
+					scratch_name(sregs, e->left->reg));
 				e->reg = e->right->reg;
-				scratch_free(s, e->left->reg);
+				scratch_free(sregs, e->left->reg);
 			}
 			break;
 		
 		case EXPR_SUB:
-			expr_codegen(s, e->left);
-			expr_codegen(s, e->right);
+			expr_codegen(sregs, e->left);
+			expr_codegen(sregs, e->right);
 			if (e->left && e->right &&
 				e->left->reg >= 0 && e->right->reg >= 0) {
 				printf("SUBQ %s, %s\n",
-					scratch_name(s, e->left->reg),
-					scratch_name(s, e->right->reg));
+					scratch_name(sregs, e->left->reg),
+					scratch_name(sregs, e->right->reg));
 
 				e->reg = e->right->reg;
-				scratch_free(s, e->left->reg);
+				scratch_free(sregs, e->left->reg);
 			}
 			break;
 
 		case EXPR_ADD:
-			expr_codegen(s, e->left);
-			expr_codegen(s, e->right);
+			expr_codegen(sregs, e->left);
+			expr_codegen(sregs, e->right);
 			if (e->left && e->right && 
 				e->left->reg >= 0 && e->right->reg >= 0) {
 				printf("ADDQ %s, %s\n",
-					scratch_name(s, e->left->reg),
-					scratch_name(s, e->right->reg));
+					scratch_name(sregs, e->left->reg),
+					scratch_name(sregs, e->right->reg));
 				e->reg = e->right->reg;
-				scratch_free(s, e->left->reg);
+				scratch_free(sregs, e->left->reg);
 			}
 			break;
 
 		case EXPR_INCREMENT:
 		case EXPR_DECREMENT:
-			expr_codegen(s, e->left);
+			expr_codegen(sregs, e->left);
 			if (e->left && e->left->reg >= 0) {
-				reg = scratch_alloc(s);
+				reg = scratch_alloc(sregs);
 				if (reg >= 0) {
 					printf("MOVQ %s, %s\n",
-						scratch_name(s, e->left->reg),
-						scratch_name(s, e->right->reg));
+						scratch_name(sregs, e->left->reg),
+						scratch_name(sregs, e->right->reg));
 					e->reg = reg;
-					scratch_free(s, e->left->reg);
+					scratch_free(sregs, e->left->reg);
 
 				}
 			}
@@ -207,34 +206,34 @@ void expr_codegen(struct scratch_registers* s, struct expr* e) {
 
 
 		case EXPR_ASSIGNMENT:
-			expr_codegen(s, e->left);
+			expr_codegen(sregs, e->left);
 			if (e->left && e->left->reg >= 0) {
-				printf("MOVQ %s, %d\n",
-					scratch_name(s, e->left->reg);
+				printf("MOVQ %s, %s\n",
+					scratch_name(sregs, e->left->reg),
 					symbol_codegen(e->right->symbol));
 				e->reg = e->left->reg;
 			}
 			break;
 
 		case EXPR_INTEGER:
-			reg = scratch_alloc(s);
+			reg = scratch_alloc(sregs);
 			if (reg >= 0) {
 				e->reg = reg;
 				printf("MOVQ $%d, %s\n",
 					e->integer_value,
-					scratch_name(s, e->reg));
+					scratch_name(sregs, e->reg));
 			}
 			break;
 	}
 }
 
-void decl_codegen(struct scratch_registers* s, struct decl* d) {
-	if (!d) return;
+void decl_codegen(struct scratch_registers* sregs, struct decl* d) {
+	if (!sregs || !d) return;
 
 	while (d) {
-		if (d->value) expr_codegen(s, d->value);
+		if (d->value) expr_codegen(sregs, d->value);
 
-		if (d->code) stmt_codegen(s, d->code);
+		if (d->code) stmt_codegen(sregs, d->code);
 
 		d = d->next;
 	}

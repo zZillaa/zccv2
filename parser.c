@@ -222,12 +222,24 @@ expr_t get_expr_type(Token* token) {
         case TOKEN_DECREMENT:
             return EXPR_DECREMENT;
 
+        // Added arithmetic operator cases
+        case TOKEN_ADD:
+            return EXPR_ADD;
+
+        case TOKEN_SUBTRACT:
+            return EXPR_SUB;
+
+        case TOKEN_MULTIPLY:
+            return EXPR_MUL;
+
+        case TOKEN_DIVIDE:
+            return EXPR_DIV;
+
         default:
-            fprintf(stderr, "Error: Unrecognized token type for expression.\n");
+            fprintf(stderr, "Error: Unrecognized token type %d for expression.\n", token->type);
             exit(EXIT_FAILURE);
     }
 }
-
 
 struct expr* parse_factor(Token* tokens, int* tokenIdx) {
     struct expr* expr_node = NULL;
@@ -699,7 +711,6 @@ struct expr* parse_array_init_list(Token* tokens, int* tokenIdx) {
 
     return head;
 }
-
 
 struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* element_type) {
     if (!element_type) {

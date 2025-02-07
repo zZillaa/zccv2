@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
 
         struct scratch_registers* s = create_scratch_registers();
-        decl_codegen(s, ast);
+        decl_codegen(s, ast->declaration);
 
         // struct dag_array* dag = build_dag(ast);
         // print_dag(dag);

@@ -6,7 +6,7 @@ int compare(int a, int b) {
 	int s = 50;
 	int arr[5] = {1, 2, 3, 4, 5};
 
-	int result = x;
+	int result = x + y;
 
 	return 0;
 }	

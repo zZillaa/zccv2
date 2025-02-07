@@ -103,7 +103,7 @@ struct expr {
 // FOR EXPRESSIONS
 
 // TYPE STRUCTURES
-typedef enum type_t{
+typedef enum type_t {
     TYPE_VOID,
     TYPE_OPERATOR,
     TYPE_BOOLEAN,
