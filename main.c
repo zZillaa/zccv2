@@ -5,7 +5,6 @@
 #include <string.h>
 #include "lexer.h"
 #include "ast.h"
-#include "dag.h"
 #include "codegen.h"
 
 long getFileSize(FILE* file) {

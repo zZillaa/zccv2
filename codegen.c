@@ -97,9 +97,6 @@ const char* symbol_codegen(struct symbol* sym) {
 		case SYMBOL_GLOBAL:
 			return sym->name;
 
-		default:
-			fprintf(stderr, "Error: Unknwown symbol type\nSymbol Type: %d", sym->type->kind);
-			return NULL;
 	}
 }
 
@@ -119,30 +116,37 @@ void expr_codegen(struct RegisterTable* sregs, struct expr* e) {
 			expr_codegen(sregs,e->right);
 
 			printf("ADDQ %s, %s\n",
-				scratch_name(sregs, e->left->reg),
-				scratch_name(sregs, e->right->reg));
+				scratch_name(sregs, e->right->reg),
+				scratch_name(sregs, e->left->reg));
 
-			e->reg = e->right->reg;
-			scratch_free(sregs, e->left->reg);
+			e->reg = e->left->reg;
+			scratch_free(sregs, e->right->reg);
 			break;
 
 		case EXPR_SUB:
 			expr_codegen(sregs, e->left);
 			expr_codegen(sregs, e->right);
 			printf("SUBQ %s, %s\n",
-				scratch_name(sregs, e->left->reg),
-				scratch_name(sregs, e->right->reg));
+				scratch_name(sregs, e->right->reg),
+				scratch_name(sregs, e->left->reg));
 
-			e->reg = e->right->reg;
-			scratch_free(sregs, e->left->reg);
+			e->reg = e->left->reg;
+			scratch_free(sregs, e->right->reg);
 			break;
 
 		case EXPR_ASSIGNMENT:
-			expr_codegen(sregs, e->left);
+			expr_codegen(sregs, e->right);
 			printf("MOVQ %s, %s\n",
-				scratch_name(sregs, e->left->reg),
-				symbol_codegen(e->right->symbol));
-			e->reg = e->left->reg;
+				scratch_name(sregs, e->right->reg),
+				symbol_codegen(e->left->symbol));
+			e->reg = e->right->reg;
+			break;
+
+		case EXPR_INTEGER:
+			e->reg = scratch_alloc(sregs);
+			printf("MOVQ $%d, %s\n",
+				e->integer_value,
+				scratch_name(sregs, e->reg));
 			break;
 	}
 }
@@ -182,6 +186,7 @@ void free_register(struct Register* reg) {
 	free((void*)reg->name);
 	free(reg);
 }
+
 void free_register_table(struct RegisterTable* sregs) {
 	if (!sregs) return;
 

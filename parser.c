@@ -31,6 +31,7 @@ struct expr* expr_create_char_literal(char ch) {
     node->name = NULL;
     node->string_literal = NULL;
     node->symbol = NULL;
+    node->reg = -1;
 
     return node;
 }
@@ -46,6 +47,7 @@ struct expr* expr_create_boolean_literal(int b) {
     node->name = NULL;
     node->string_literal = NULL;
     node->symbol = NULL;
+    node->reg = -1;
 
     return node;
 }
@@ -65,6 +67,7 @@ struct expr* expr_create_string_literal(char* str) {
     node->ch_expr = 0;
     node->string_literal = strdup(str);
     node->symbol = NULL;
+    node->reg = -1;
 
     return node;
 }
@@ -223,7 +226,6 @@ expr_t get_expr_type(Token* token) {
         case TOKEN_DECREMENT:
             return EXPR_DECREMENT;
 
-        // Added arithmetic operator cases
         case TOKEN_ADD:
             return EXPR_ADD;
 

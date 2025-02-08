@@ -2,6 +2,10 @@ int compare(int a, int b) {
 
 	int x = 5;
 	int y = x + 10;
+	int z = y + x;
 
-	return 0;
+	int w = z - x;
+
+	return w;
+	
 }	
