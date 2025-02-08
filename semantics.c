@@ -397,7 +397,9 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 
 			case STMT_BLOCK:
 				if (stmt->body) {
+					scope_enter(stack, NULL);
 					stmt_resolve(stmt->body, stack);
+					scope_exit(stack);
 				}
 				break;
 
@@ -664,6 +666,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
 
         case EXPR_NAME:
             if (!e->symbol) {
+    
             	fprintf(stderr, "Error: Symbol '%s' unresolved\n", e->name);
             	return type_create(TYPE_UNKNOWN, NULL, NULL);
             }
@@ -689,8 +692,11 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
         case EXPR_SUB:
         case EXPR_MUL:
         case EXPR_DIV:
-        	if (!lt || !rt || lt->kind != TYPE_INTEGER || rt->kind != TYPE_INTEGER) {
-        		fprintf(stderr, "Error: Arithmetic operations require integer types\n");
+        	if (!lt || !rt) {
+        		fprintf(stderr, "Error: Missing operand in arithmetic operation\n");
+        		result = type_create(TYPE_UNKNOWN, NULL, NULL);
+        	} else if (lt->kind != TYPE_INTEGER || rt->kind != TYPE_INTEGER) {
+        		fprintf(stderr, "Error: Both operands must be integer types for arithmetic operations\n");
         		result = type_create(TYPE_UNKNOWN, NULL, NULL);
         	} else {
         		result = type_create(TYPE_INTEGER, NULL, NULL);

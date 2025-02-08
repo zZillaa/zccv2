@@ -84,6 +84,7 @@ struct expr* expr_create(expr_t kind, struct expr* left, struct expr* right) {
     node->ch_expr = 0;
     node->string_literal = NULL;
     node->symbol = NULL;
+    node->reg = -1;
 
     return node;
 }

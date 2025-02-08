@@ -79,13 +79,10 @@ int main(int argc, char **argv) {
         program_typecheck(ast, stack);
 
 
-        struct scratch_registers* s = create_scratch_registers();
-        decl_codegen(s, ast->declaration);
-
-        // struct dag_array* dag = build_dag(ast);
-        // print_dag(dag);
-
-        // free_dag_array(dag);
+        struct RegisterTable* sregs = create_register_table();
+        decl_codegen(sregs, ast->declaration);
+        
+        free_register_table(sregs);
         free_stack(stack);
         free_ast(ast);
         free_tokens(tokens);
