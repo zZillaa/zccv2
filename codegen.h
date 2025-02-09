@@ -38,8 +38,8 @@ void scratch_free(struct RegisterTable* sregs, int r);
 const char* scratch_name(struct RegisterTable* sregs, int r);
 struct Register* create_register(register_state_t state, const char* name);
 struct RegisterTable* create_register_table();
-// void asm_write_to_section(struct AsmWriter* writer, const char* content, int section_type);
-// struct AsmWriter* create_asm_writer();
+void asm_write_to_section(struct AsmWriter* writer, const char* content, int section_type);
+struct AsmWriter* create_asm_writer();
 
 int label_create();
 const char* label_name( int label );
