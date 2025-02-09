@@ -1,9 +1,9 @@
-int compare(int a, int b) {
+int compare() {
 
 	int x = 5;
-	int z = 6;
-	int y = x + 10;
-	int w = y + z;
+	int y = 6;
+	int z = x + 10;
+	int w = z - y;
 
-	return w;	
+	return z;	
 }	

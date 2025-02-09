@@ -79,9 +79,10 @@ int main(int argc, char **argv) {
 
 
         struct RegisterTable* sregs = create_register_table();
-        // struct AsmWriter* writer = create_asm_writer();
-        decl_codegen(sregs, ast->declaration);
+        struct AsmWriter* writer = create_asm_writer("output.asm");
+        decl_codegen(sregs, writer, ast->declaration);
         
+        free_asm_writer(writer);
         free_register_table(sregs);
         free_stack(stack);
         free_ast(ast);

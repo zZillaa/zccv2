@@ -38,16 +38,19 @@ void scratch_free(struct RegisterTable* sregs, int r);
 const char* scratch_name(struct RegisterTable* sregs, int r);
 struct Register* create_register(register_state_t state, const char* name);
 struct RegisterTable* create_register_table();
+
+struct AsmWriter* create_asm_writer(const char* filename);
 void asm_write_to_section(struct AsmWriter* writer, const char* content, int section_type);
-struct AsmWriter* create_asm_writer();
+void free_asm_writer(struct AsmWriter* writer);
+
 
 int label_create();
 const char* label_name( int label );
 
 const char* symbol_codegen(struct symbol* sym);
-void expr_codegen(struct RegisterTable* sregs, struct expr* e);
-void stmt_codegen(struct RegisterTable* sregs, struct stmt* s);
-void decl_codegen(struct RegisterTable* sregs, struct decl* d);
+void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);
+void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s);
+void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d);
 
 void free_register(struct Register* r);
 void free_register_table(struct RegisterTable* sregs);
