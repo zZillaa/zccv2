@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define MAX_SCRATCH_REGISTERS 5
+#define MAX_SCRATCH_REGISTERS 6
 
 static int label_counter = 0;
 
