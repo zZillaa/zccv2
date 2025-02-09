@@ -5,7 +5,6 @@ struct Register* create_register(register_state_t state, const char* name) {
 	if (!reg) return NULL;
 
 	reg->state = state;
-	printf("This register has state: %d\n", state);
 	reg->name = strdup(name);
 	if (!reg->name) {
 		fprintf(stderr, "Error: Could not allocate space for register name\n");
@@ -23,7 +22,7 @@ struct RegisterTable* create_register_table() {
 
 	sregs->capacity = MAX_SCRATCH_REGISTERS;
 
-	static const char* reg_names[] = {"%rbx", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"};
+	static const char* reg_names[] = {"rbx", "r8", "r9", "r10", "r11"};
 
 	for (int r = 0; r < sregs->capacity; r++) {
 		sregs->registers[r] = create_register(REGISTER_FREE, reg_names[r]);
@@ -31,6 +30,37 @@ struct RegisterTable* create_register_table() {
 
 	return sregs;
 }
+
+struct AsmWriter* create_asm_writer(const char* filename) {
+	struct AsmWriter* writer = malloc(sizeof(struct AsmWriter));
+	if (!writer) return NULL;
+
+	writer->filename = strdup(filename);
+	if (!writer->filename) {
+		free(writer);
+		return NULL;
+	}
+
+	writer->file = fopen(filename, "w+");
+	if (!writer->file) {
+		free((void*)writer->filename);
+		free(writer);
+		return NULL;
+	}
+
+	fprintf(writer->file, "section .data\n");
+	writer->data_section = ftell(writer->file);
+
+	fprintf(writer->file, "\n\nsection .text\n");
+	writer->text_section = ftell(writer->file);
+	fprintf(writer->file, "global _start\n_start:\n");
+
+	writer->current_pos = ftell(writer->file);
+
+	return writer;
+}
+
+
 
 int scratch_alloc(struct RegisterTable* sregs) {
 	if (!sregs) return -1;
@@ -76,21 +106,18 @@ const char* symbol_codegen(struct symbol* sym) {
 	}
 
 	static char buffer[32];
-	static int offset = 0;
 
 	switch (sym->kind) {
 		case SYMBOL_LOCAL:	
 			if (sym->type->kind == TYPE_INTEGER) {
-				offset -= 8;
-				snprintf(buffer, sizeof(buffer), "%d(%%rbp)", offset);
+				snprintf(buffer, sizeof(buffer), "rbp - %d", 8 * (sym->u.local_var_index + 1));
 
 			}
 			return buffer;  
 
 		case SYMBOL_PARAM:
 			if (sym->type->kind == TYPE_INTEGER) {
-				offset -= 8;
-				snprintf(buffer, sizeof(buffer), "%d(%%rbp)", offset);
+				snprintf(buffer, sizeof(buffer), "rbp %d", 16 + (sym->u.param_index * 8));
 			}			
 			return buffer;
 
@@ -104,20 +131,14 @@ void expr_codegen(struct RegisterTable* sregs, struct expr* e) {
 	if (!sregs || !e) return;
 
 	switch (e->kind) {
-		case EXPR_NAME:
-			e->reg = scratch_alloc(sregs);
-			printf("MOVQ %s, %s\n",
-				symbol_codegen(e->symbol),
-				scratch_name(sregs, e->reg));
-			break;
 
 		case EXPR_ADD:
 			expr_codegen(sregs,e->left);
 			expr_codegen(sregs,e->right);
 
-			printf("ADDQ %s, %s\n",
-				scratch_name(sregs, e->right->reg),
-				scratch_name(sregs, e->left->reg));
+			printf("add %s, %s\n",
+				scratch_name(sregs, e->left->reg),
+				scratch_name(sregs, e->right->reg));
 
 			e->reg = e->left->reg;
 			scratch_free(sregs, e->right->reg);
@@ -126,28 +147,63 @@ void expr_codegen(struct RegisterTable* sregs, struct expr* e) {
 		case EXPR_SUB:
 			expr_codegen(sregs, e->left);
 			expr_codegen(sregs, e->right);
-			printf("SUBQ %s, %s\n",
-				scratch_name(sregs, e->right->reg),
-				scratch_name(sregs, e->left->reg));
+			printf("sub %s, %s\n",
+				scratch_name(sregs, e->left->reg),
+				scratch_name(sregs, e->right->reg));
 
 			e->reg = e->left->reg;
 			scratch_free(sregs, e->right->reg);
 			break;
 
-		case EXPR_ASSIGNMENT:
+		case EXPR_ASSIGNMENT: {
 			expr_codegen(sregs, e->right);
-			printf("MOVQ %s, %s\n",
-				scratch_name(sregs, e->right->reg),
-				symbol_codegen(e->left->symbol));
-			e->reg = e->right->reg;
+
+			if (e->left->kind == EXPR_NAME && e->left->symbol->kind == SYMBOL_LOCAL) {
+				printf("mov [%s], %s\n",
+				symbol_codegen(e->left->symbol),
+				scratch_name(sregs, e->right->reg));
+				e->reg = e->right->reg;
+
+			} else {
+				printf("mov [%s], %s\n",
+					symbol_codegen(e->left->symbol),
+					scratch_name(sregs, e->right->reg));
+				e->reg = e->right->reg;
+			}
+			scratch_free(sregs, e->right->reg);
+			break;
+		}
+
+		case EXPR_NAME:
+			e->reg = scratch_alloc(sregs);
+			if (e->symbol->kind == SYMBOL_LOCAL) {
+				printf("mov %s, [%s]\n",
+					scratch_name(sregs, e->reg),
+					symbol_codegen(e->symbol));
+
+			} else if (e->symbol->kind == SYMBOL_PARAM) {
+				printf("mov %s, [%s]\n",
+					scratch_name(sregs, e->reg),
+					symbol_codegen(e->symbol));
+			} else {
+				printf("mov %s, [%s]\n",
+					scratch_name(sregs, e->reg),
+					symbol_codegen(e->symbol));
+			}
 			break;
 
 		case EXPR_INTEGER:
 			e->reg = scratch_alloc(sregs);
-			printf("MOVQ $%d, %s\n",
-				e->integer_value,
-				scratch_name(sregs, e->reg));
+			printf("mov %s, %d\n",
+				scratch_name(sregs, e->reg),
+				e->integer_value);
 			break;
+
+		// case EXPR_ARRAY:
+		// 	int label_num = label_create();
+		// 	const char* name = label_create(label_num);
+
+
 	}
 }
 
@@ -171,8 +227,18 @@ void decl_codegen(struct RegisterTable* sregs, struct decl* d) {
 	if (!sregs || !d) return;
 
 	while (d) {
-		if (d->value) expr_codegen(sregs, d->value);
+		if (d->value) {
+			int reg = scratch_alloc(sregs);
+			expr_codegen(sregs, d->value);
 
+			printf("mov [%s], %s\n",
+				symbol_codegen(d->symbol),
+				scratch_name(sregs, d->value->reg));
+
+			scratch_free(sregs, d->value->reg);
+			scratch_free(sregs, reg);
+
+		}
 		if (d->code) stmt_codegen(sregs, d->code);
 
 		d = d->next;

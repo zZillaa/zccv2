@@ -16,6 +16,7 @@ struct expr* expr_create_integer_literal(int i) {
     node->name = NULL;
     node->string_literal = NULL;
     node->symbol = NULL;
+    node->reg = -1;
 
     return node;
 }
@@ -109,6 +110,7 @@ struct decl* decl_create(char* name, struct type* type, struct expr* value, stru
     node->code = code;
     node->next = next;
     node->symbol = NULL;
+    node->reg = -1;
 
     return node;
 }
@@ -768,39 +770,6 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
 
     return NULL;
 }
-
-// struct expr* parse_struct_members(Token* tokens, int* tokenIdx) {
-
-//     struct expr* head = NULL;
-//     struct expr* current = NULL;
-
-//     while (tokens[*tokenIdx].type != TOKEN_RIGHT_PARENTHESES) {
-//         struct expr* init_expr = parse_expression(tokens, tokenIdx);
-//         if (!init_expr) return NULL;
-
-//         if (!head) {
-//             head = init_expr;
-//             current = init_expr;
-//         } else {
-//             current->next = init_expr;
-//             current = current->next;
-//         }
-
-//         if (tokens[*tokenIdx].type == TOKEN_COMMA) (*tokenIdx)++;
-//     }
-
-//     (*tokenIdx)++;
-
-//     return headb
-// }
-
-// struct decl* parse_struct(Token* tokens, int* tokenIdx, char* tag) {
-//     struct expr* e = parse_struct_members(tokens, tokenIdx);  
-//     struct decl* d = decl_create(tag, NULL, e, NULL, NULL);
-
-//     return d;
-
-// }
 
 struct decl* parse_declaration(Token* tokens, int* tokenIdx) {
     type_t kind = get_type(&tokens[*tokenIdx]);

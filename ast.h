@@ -16,6 +16,7 @@ struct decl {
     struct stmt* code;
     struct decl* next;
     struct symbol* symbol;
+    int reg;
 };
 
 // FOR STATEMENTS // 
@@ -147,6 +148,10 @@ struct symbol {
     struct type* type;
     char* name;
     struct symbol* next;
+    union {
+        int param_index;
+        int local_var_index;
+    } u;
 };
 
 struct symbol_table {

@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define MAX_SCRATCH_REGISTERS 7
+#define MAX_SCRATCH_REGISTERS 5
 
 static int label_counter = 0;
 
@@ -25,11 +25,21 @@ struct RegisterTable {
 	int capacity;
 };
 
+struct AsmWriter {
+	FILE* file;
+	const char* filename;
+	long data_section;
+	long text_section;
+	long current_pos;
+};
+
 int scratch_alloc(struct RegisterTable* sregs);
 void scratch_free(struct RegisterTable* sregs, int r);
 const char* scratch_name(struct RegisterTable* sregs, int r);
 struct Register* create_register(register_state_t state, const char* name);
 struct RegisterTable* create_register_table();
+// void asm_write_to_section(struct AsmWriter* writer, const char* content, int section_type);
+// struct AsmWriter* create_asm_writer();
 
 int label_create();
 const char* label_name( int label );
