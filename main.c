@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
     if (contents != NULL) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
         Token* tokens = lexer(contents);
-        print_tokens(tokens);
+        // print_tokens(tokens);
         
         struct program* ast = build_ast(tokens);
         print_ast(ast);

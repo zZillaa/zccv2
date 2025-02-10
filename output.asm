@@ -8,14 +8,19 @@ _start:
 	mov rbp, rsp
 	sub rsp, 32
 
-	mov rbx, 5
-	mov [rbp - 8], rbx
-	mov rbx, 1
-	mov [rbp - 16], rbx
+	mov rax, 5
+	mov [rbp - 8], rax
+	mov rax, 2
+	mov [rbp - 16], rax
+	mov rax, 2
+	mov rbx, [rbp - 16]
+	add rax, rbx
+	mov [rbp - 24], rax
+	mov rax, 5
 	mov rbx, [rbp - 8]
-	mov r8, [rbp - 8]
-	add rbx, r8
-	mov [rbp - 24], rbx
+	mov rax, rax
+	imul rbx
+	mov [rbp - 32], rax
 
 	mov rsp, rbp
 	pop rbp

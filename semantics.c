@@ -19,7 +19,7 @@ struct symbol* create_symbol(symbol_t kind, struct type* type, char* name) {
 		return NULL;
 	}
 	printf("\nSymbol creation successful | name: '%s' | type : %d\n", symbol->name, symbol->type->kind);
-
+	printf("Creating symbol %s with kind %d and index %d\n", name, kind, symbol->u.local_var_index);
 	return symbol;
 }
 
@@ -436,6 +436,8 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 
 		if (kind == SYMBOL_LOCAL) {
 			d->symbol->u.local_var_index = local_var_counter++;
+			printf("Resolution - Symbol address: %p, name: %s, index: %d\n",
+				(void*)d->symbol, d->name, d->symbol->u.local_var_index);
 			fprintf(stderr, "Created local variable %s with index %d\n", d->name, d->symbol->u.local_var_index);
 		}
 
@@ -776,20 +778,18 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
 void decl_typecheck(struct decl* d, struct stack* stack) {
     if (!d) return;
 
+    static int local_var_counter = 0;
+
     while (d) {
         if (d->type->kind == TYPE_FUNCTION) {
+        	local_var_counter = 0;
             current_function = d;
             
-            scope_enter(stack, NULL);  // Enter scope for parameters
+            scope_enter(stack, NULL);
             
             // Rebuild parameter scope with bindings
             struct param_list* param = d->type->params;
             while (param) {
-                // symbol_t kind = SYMBOL_PARAM;
-                // struct symbol* param_sym = create_symbol(kind, param->type, param->name);
-                // if (param_sym) {
-                //     scope_bind(stack, param_sym);
-                // }
 
                 if (param->symbol) {
                 	scope_bind(stack, param->symbol);
@@ -798,22 +798,20 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
             }
 
             if (d->code) {
-                scope_enter(stack, NULL);  // Enter scope for function body
-                // Process each declaration in the function body first
+                scope_enter(stack, NULL);  
                 struct stmt* s = d->code;
                 while (s) {
                     if (s->kind == STMT_DECL && s->decl) {
-                        // Create and bind symbols for local variables
                         symbol_t kind = SYMBOL_LOCAL;
                         struct symbol* local_sym = create_symbol(kind, s->decl->type, s->decl->name);
                         if (local_sym) {
+                        	local_sym->u.local_var_index = local_var_counter++;
                             scope_bind(stack, local_sym);
                         }
                     }
                     s = s->next;
                 }
                 
-                // Now typecheck the function body
                 stmt_typecheck(d->code, stack);
                 scope_exit(stack);         // Exit function body scope
             }
@@ -821,9 +819,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
             scope_exit(stack);  // Exit parameter scope
             current_function = NULL;
         } else {
-            // Regular variable declaration
             if (!d->symbol) {
-                // Create and bind symbol if it doesn't exist
                 symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
                 d->symbol = create_symbol(kind, d->type, d->name);
                 if (d->symbol) {
