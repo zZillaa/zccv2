@@ -235,101 +235,101 @@ Token* lexer(char* contents) {
 
 }
 
-void print_tokens(Token* tokens) {
-    for (int i = 0; tokens[i].type != TOKEN_EOF; i++) {
-        // printf("Token type: ");
-        switch (tokens[i].type) { 
-            case TOKEN_ADD_AND_ASSIGN:
-                printf("ADD AND ASSIGN, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_SUBTRACT_AND_ASSIGN:
-                printf("SUBTRACT AND ASSSIGN, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_MULTIPLY_AND_ASSIGN:
-                printf("MULTIPLY AND ASSIGN, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_DIVIDE_AND_ASSIGN:
-                printf("DIVIDE AND ASSIGN, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_INCREMENT:
-                printf("INCREMENT, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_DECREMENT:
-                printf("DECREMENT, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_EQUAL:
-                printf("EQUAL, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_GREATER_EQUAL:
-                printf("GREATER THAN OR EQUAL, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_LESS_EQUAL:
-                printf("LESS THAN OR EQUAL, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_NOT_EQUAL:
-                printf("NOT EQUAL, Value: %s\n", tokens[i].value.string);
-                break; 
-            case TOKEN_IF:
-                printf("IF, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_ELSE:
-                printf("ELSE, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_WHILE:
-                printf("WHILE, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_FOR:
-                printf("FOR, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_VOID:
-                printf("VOID, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_INT:
-                printf("INT, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_BOOLEAN:
-                printf("BOOLEAN, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_CHAR:
-                printf("CHAR, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_INT_LITERAL:
-                printf("INT LITERAL, Value: %d\n", tokens[i].value.integer_value);
-                break;
-            case TOKEN_ID:
-                printf("IDENTIFIER, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_KEYWORD:
-                printf("KEYWORD, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_RETURN:
-                printf("RETURN, Value: %s\n", tokens[i].value.string);
-                break;
-            case TOKEN_UNKNOWN:
-                printf("UNKNOWN\n");
-                break;
-            case TOKEN_ADD:
-            case TOKEN_SUBTRACT:
-            case TOKEN_MULTIPLY:
-            case TOKEN_DIVIDE:
-            case TOKEN_COMMA:
-            case TOKEN_SEMICOLON:
-            case TOKEN_LEFT_BRACE:
-            case TOKEN_RIGHT_BRACE:
-            case TOKEN_LEFT_PARENTHESES:
-            case TOKEN_RIGHT_PARENTHESES:
-            case TOKEN_LEFT_BRACKET:
-            case TOKEN_RIGHT_BRACKET:
-            case TOKEN_ASSIGNMENT:
-            case TOKEN_UNDERSCORE:
-            case TOKEN_LESS:
-            case TOKEN_GREATER:
-                printf("CHARACTER, Value: %c\n", tokens[i].value.character);
-                break;
+// void print_tokens(Token* tokens) {
+//     for (int i = 0; tokens[i].type != TOKEN_EOF; i++) {
+//         // printf("Token type: ");
+//         switch (tokens[i].type) { 
+//             case TOKEN_ADD_AND_ASSIGN:
+//                 printf("ADD AND ASSIGN, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_SUBTRACT_AND_ASSIGN:
+//                 printf("SUBTRACT AND ASSSIGN, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_MULTIPLY_AND_ASSIGN:
+//                 printf("MULTIPLY AND ASSIGN, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_DIVIDE_AND_ASSIGN:
+//                 printf("DIVIDE AND ASSIGN, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_INCREMENT:
+//                 printf("INCREMENT, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_DECREMENT:
+//                 printf("DECREMENT, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_EQUAL:
+//                 printf("EQUAL, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_GREATER_EQUAL:
+//                 printf("GREATER THAN OR EQUAL, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_LESS_EQUAL:
+//                 printf("LESS THAN OR EQUAL, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_NOT_EQUAL:
+//                 printf("NOT EQUAL, Value: %s\n", tokens[i].value.string);
+//                 break; 
+//             case TOKEN_IF:
+//                 printf("IF, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_ELSE:
+//                 printf("ELSE, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_WHILE:
+//                 printf("WHILE, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_FOR:
+//                 printf("FOR, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_VOID:
+//                 printf("VOID, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_INT:
+//                 printf("INT, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_BOOLEAN:
+//                 printf("BOOLEAN, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_CHAR:
+//                 printf("CHAR, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_INT_LITERAL:
+//                 printf("INT LITERAL, Value: %d\n", tokens[i].value.integer_value);
+//                 break;
+//             case TOKEN_ID:
+//                 printf("IDENTIFIER, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_KEYWORD:
+//                 printf("KEYWORD, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_RETURN:
+//                 printf("RETURN, Value: %s\n", tokens[i].value.string);
+//                 break;
+//             case TOKEN_UNKNOWN:
+//                 printf("UNKNOWN\n");
+//                 break;
+//             case TOKEN_ADD:
+//             case TOKEN_SUBTRACT:
+//             case TOKEN_MULTIPLY:
+//             case TOKEN_DIVIDE:
+//             case TOKEN_COMMA:
+//             case TOKEN_SEMICOLON:
+//             case TOKEN_LEFT_BRACE:
+//             case TOKEN_RIGHT_BRACE:
+//             case TOKEN_LEFT_PARENTHESES:
+//             case TOKEN_RIGHT_PARENTHESES:
+//             case TOKEN_LEFT_BRACKET:
+//             case TOKEN_RIGHT_BRACKET:
+//             case TOKEN_ASSIGNMENT:
+//             case TOKEN_UNDERSCORE:
+//             case TOKEN_LESS:
+//             case TOKEN_GREATER:
+//                 printf("CHARACTER, Value: %c\n", tokens[i].value.character);
+//                 break;
 
-        }
-    }
-}
+//         }
+//     }
+// }
 
 void free_token(Token* token) {
     if (token->type == TOKEN_ID || token->type == TOKEN_KEYWORD) {
