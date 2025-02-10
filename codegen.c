@@ -417,7 +417,13 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			asm_to_write_section(writer, buffer, 1);
 			break;
 
-		
+		case EXPR_ARRAY_VAL:
+			snprintf(buffer, sizeof(buffer), "%d ",
+				e->integer_value);
+
+			asm_to_write_section(writer, buffer, 0);
+			break;
+
 		case EXPR_ARRAY:
 			int label_num = label_create();
 			const char* id = label_name(label_num);
@@ -440,7 +446,9 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 					array_size);
 
 				asm_to_write_section(writer, buffer, 0);
+
 			} else {
+				printf("I am here for array values\n");
 				snprintf(buffer, sizeof(buffer), "\t%s %s",
 					id,
 					bytes_to_string(byte_t));	
@@ -452,11 +460,6 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				while (current) {
 					printf("About to print array values\n");
 					expr_codegen(sregs, writer, current);
-					snprintf(buffer, sizeof(buffer), "%d ",
-						 current->integer_value);
-
-					asm_to_write_section(writer, buffer, 0);
-
 					current = current->right;
 				}
 			}

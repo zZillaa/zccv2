@@ -760,6 +760,15 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
                 array_expr->right = next;
             }
         }
+        /*
+        Have to change types of array values because code generator recognizes the elements
+        as integers and starts allocating registers
+        */
+        while (array_expr->right) {
+            struct expr* next = array_expr->right->right;
+            array_expr->kind = EXPR_ARRAY_VAL;
+            array_expr->right = next;
+        }
 
         struct decl* d = decl_create(name, array_type, array_expr, NULL, NULL);
 

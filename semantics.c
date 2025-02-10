@@ -642,6 +642,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
             break;
         }
 
+    	case EXPR_ARRAY_VAL:
         case EXPR_INTEGER:
             result = type_create(TYPE_INTEGER, NULL, NULL);
             break;
