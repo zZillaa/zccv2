@@ -1,4 +1,6 @@
 section .data
+	.L0: resq 5
+	.L1: resq 10
 
 section .text
 global _start
@@ -34,11 +36,16 @@ _start:
 	mov rax, 5
 	mov rbx, [rbp - 48]
 	sub rax, rbx
-	mov [rbp - 56], rax
+	mov [rbp - 56], rax	mov [rbp - 56], (null)	mov [rbp - 56], (null)
 
 	mov rsp, rbp
 	pop rbp
+	ret
 
 	mov rax, 60
 	xor rdi, rdi
 	syscall
+
+	mov rax, 10
+
+	mov rax, 5

@@ -59,7 +59,7 @@ struct AsmWriter* create_asm_writer(const char* filename) {
 
 	return writer;
 }
-
+/*
 void asm_to_write_section(struct AsmWriter* writer, const char* content, int section_type) {
 	if (!writer || !content) return;
 
@@ -73,12 +73,59 @@ void asm_to_write_section(struct AsmWriter* writer, const char* content, int sec
 		fseek(writer->file, prev_location, SEEK_SET);
 
 	} else {
+		printf("Executing here\n");
 		fseek(writer->file, writer->data_section, SEEK_SET);
 		fprintf(writer->file, "%s\n", content);
 
 		writer->data_section = ftell(writer->file);
 		fseek(writer->file, prev_location, SEEK_SET);
 	}
+}
+*/
+void asm_to_write_section(struct AsmWriter* writer, const char* content, int section_type) {
+    if (!writer || !content) return;
+
+    // Save current position
+    long current_position = ftell(writer->file);
+    
+    // Read the entire file content after the insertion point
+    long insertion_point = (section_type == 1) ? writer->current_pos : writer->data_section;
+    fseek(writer->file, insertion_point, SEEK_SET);
+    
+    // Read existing content after insertion point
+    char* buffer = NULL;
+    long remaining_size = 0;
+    if (fseek(writer->file, 0, SEEK_END) == 0) {
+        long end_pos = ftell(writer->file);
+        remaining_size = end_pos - insertion_point;
+        if (remaining_size > 0) {
+            buffer = malloc(remaining_size);
+            if (buffer) {
+                fseek(writer->file, insertion_point, SEEK_SET);
+                fread(buffer, 1, remaining_size, writer->file);
+            }
+        }
+    }
+    
+    // Write new content
+    fseek(writer->file, insertion_point, SEEK_SET);
+    fprintf(writer->file, "%s\n", content);
+    
+    // Update position tracker
+    if (section_type == 1) {
+        writer->current_pos = ftell(writer->file);
+    } else {
+        writer->data_section = ftell(writer->file);
+    }
+    
+    // Write back the remaining content
+    if (buffer && remaining_size > 0) {
+        fwrite(buffer, 1, remaining_size, writer->file);
+        free(buffer);
+    }
+    
+    // Restore original position
+    fseek(writer->file, current_position, SEEK_SET);
 }
 
 int scratch_alloc(struct RegisterTable* sregs) {
@@ -148,6 +195,84 @@ const char* symbol_codegen(struct symbol* sym) {
 	}
 }
 
+
+byte_size_t get_byte_size(expr_t kind) {
+	switch (kind) {
+		case EXPR_INTEGER:
+			return DQ;
+
+		case EXPR_STRING:
+			return DW;
+
+		case EXPR_BOOLEAN:
+		case EXPR_CHARACTER:
+			return DB;
+
+		default:
+			fprintf(stderr, "Error: Cannot retrieve correct number of bytes 	due to unknown expression type\n");
+			return BYTE_UNKNOWN;
+	}
+}
+
+request_byte_t get_request_type(byte_size_t kind) {
+	switch (kind) {
+		case DB:
+			return RESB;
+		case DD:
+			return RESD;
+		case DW:
+			return RESW;
+		case DQ:
+			return RESQ;
+		default:
+			fprintf(stderr, "Error: Cannot write proper request instruction due to unknown byte size\n");
+			return RES_UNKNOWN;
+	}
+}
+
+char* request_to_string(byte_size_t kind) {
+	static char buffer[32];
+
+	switch (kind) {
+		case DB:
+			snprintf(buffer, sizeof(buffer), "resb");
+			return buffer;
+
+		case DD:
+			snprintf(buffer, sizeof(buffer), "resd");
+			return buffer;
+
+		case DW:
+			snprintf(buffer, sizeof(buffer), "resw");
+			return buffer;
+
+		case DQ:
+			snprintf(buffer, sizeof(buffer), "resq");
+			return buffer;
+	}
+}
+
+char* bytes_to_string(byte_size_t kind) {
+	static char buffer[32];
+
+	switch (kind) {
+		case DB:
+			snprintf(buffer, sizeof(buffer), "db");
+			return buffer;
+		case DD:
+			snprintf(buffer, sizeof(buffer), "dd");
+			return buffer;
+
+		case DW:
+			snprintf(buffer, sizeof(buffer), "dw");
+			return buffer;
+
+		case DQ:
+			snprintf(buffer, sizeof(buffer), "dq");
+			return buffer;
+	}
+}
+
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e) {
 	if (!sregs || !e) return;
 
@@ -180,10 +305,13 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_MUL:
 			printf("ENTERING EXPR_MUL codegen\n");
+
 			expr_codegen(sregs, writer, e->left);
 			printf("Left reg: %d (%s)\n", e->left->reg, scratch_name(sregs, e->left->reg));
+			
 			expr_codegen(sregs, writer, e->right);
 			printf("Right reg: %d (%s)\n", e->right->reg, scratch_name(sregs, e->right->reg));
+			
 			snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
 			asm_to_write_section(writer, buffer, 1);
 
@@ -288,6 +416,54 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 			asm_to_write_section(writer, buffer, 1);
 			break;
+
+		
+		case EXPR_ARRAY:
+			int label_num = label_create();
+			const char* id = label_name(label_num);
+			int array_size = e->left->integer_value;
+
+			printf("Array Size: %d\n", array_size);
+			expr_codegen(sregs, writer, e->left);
+			
+			byte_size_t byte_t = get_byte_size(e->left->kind);
+			request_byte_t request_t = get_request_type(byte_t);
+
+			snprintf(buffer, sizeof(buffer), "\t%s: resq %d ",
+				id, array_size);
+
+
+			if (!e->right) {
+				snprintf(buffer, sizeof(buffer), "\t%s: %s %d",
+					id,
+					request_to_string(byte_t), 
+					array_size);
+
+				asm_to_write_section(writer, buffer, 0);
+			} else {
+				snprintf(buffer, sizeof(buffer), "\t%s %s",
+					id,
+					bytes_to_string(byte_t));	
+
+				asm_to_write_section(writer, buffer, 0);
+
+				struct expr* current = e->right;
+
+				while (current) {
+					printf("About to print array values\n");
+					expr_codegen(sregs, writer, current);
+					snprintf(buffer, sizeof(buffer), "%d ",
+						 current->integer_value);
+
+					asm_to_write_section(writer, buffer, 0);
+
+					current = current->right;
+				}
+			}
+
+			scratch_free(sregs, e->left->reg); 
+			break;
+		
 	}
 }
 

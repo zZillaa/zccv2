@@ -7,6 +7,9 @@ int compare() {
 	int s = 3 * w;
 	int t = 4 * s;
 	int r = 5 - t;
+
+	int arr[5] = {1, 2, 3, 4, 5};
+	int other[10];
 	return z;	
 }	
 

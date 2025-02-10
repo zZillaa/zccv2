@@ -953,6 +953,7 @@ void print_type(struct type* type, int indent) {
             break;
         case TYPE_ARRAY:
             printf("ARRAY");
+            break;
         case TYPE_VOID:
             printf("void");
             break;
