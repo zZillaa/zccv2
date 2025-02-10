@@ -19,8 +19,11 @@ _start:
 	mov rax, 5
 	mov rbx, [rbp - 8]
 	mov rax, rax
-	imul rbx
+	mul rbx
+	mov rax, rax
 	mov [rbp - 32], rax
+	mov rax, 20
+	mov [rbp - 40], rax
 
 	mov rsp, rbp
 	pop rbp
