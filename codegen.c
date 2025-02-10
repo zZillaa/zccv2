@@ -149,47 +149,49 @@ const char* symbol_codegen(struct symbol* sym) {
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e) {
 	if (!sregs || !e) return;
 
+	printf("Expression kind: %d\n", e->kind);
+
 	char buffer[256];
 
 	switch (e->kind) {
-		case EXPR_DIV:
-			expr_codegen(sregs, writer, e->left);
-			expr_codegen(sregs, writer, e->right);
+		// case EXPR_DIV:
+		// 	expr_codegen(sregs, writer, e->left);
+		// 	expr_codegen(sregs, writer, e->right);
 
-			snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
-			asm_to_write_section(writer, buffer, 1);
+		// 	snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
+		// 	asm_to_write_section(writer, buffer, 1);
 
-			snprintf(buffer, sizeof(buffer), "\tcqo");
-			asm_to_write_section(writer, buffer, 1);
+		// 	snprintf(buffer, sizeof(buffer), "\tcqo");
+		// 	asm_to_write_section(writer, buffer, 1);
 
-			snprintf(buffer, sizeof(buffer), "\tidiv %s", scratch_name(sregs, e->right->reg));
-			asm_to_write_section(writer, buffer, 1);
+		// 	snprintf(buffer, sizeof(buffer), "\tidiv %s", scratch_name(sregs, e->right->reg));
+		// 	asm_to_write_section(writer, buffer, 1);
 
-			e->reg = scratch_alloc(sregs);
-			snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, e->reg));
-			asm_to_write_section(writer, buffer, 1);
+		// 	e->reg = e->left->reg;
+		// 	// snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, e->reg));
+		// 	// asm_to_write_section(writer, buffer, 1);
 
-			scratch_free(sregs, e->left->reg);
-			scratch_free(sregs, e->right->reg);
-			break; 
+		// 	// scratch_free(sregs, e->left->reg);
+		// 	scratch_free(sregs, e->right->reg);
+		// 	break; 
 
-		case EXPR_MUL:
-			expr_codegen(sregs, writer, e->left);
-			expr_codegen(sregs, writer, e->right);
+		// case EXPR_MUL:
+		// 	expr_codegen(sregs, writer, e->left);
+		// 	expr_codegen(sregs, writer, e->right);
 
-			snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
-			asm_to_write_section(writer, buffer, 1);
+		// 	snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
+		// 	asm_to_write_section(writer, buffer, 1);
 
-			snprintf(buffer, sizeof(buffer), "\timul %s", scratch_name(sregs, e->right->reg));
-			asm_to_write_section(writer, buffer, 1);
+		// 	snprintf(buffer, sizeof(buffer), "\timul %s", scratch_name(sregs, e->right->reg));
+		// 	asm_to_write_section(writer, buffer, 1);
 
-			e->reg = scratch_alloc(sregs);
-			snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, e->reg));
-			asm_to_write_section(writer, buffer, 1);
+		// 	e->reg = e->left->reg;
+		// 	// snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, e->reg));
+		// 	// asm_to_write_section(writer, buffer, 1);
 
-			scratch_free(sregs, e->right->reg);
-			scratch_free(sregs, e->right->reg);
-			break;
+		// 	// scratch_free(sregs, e->left->reg);
+		// 	scratch_free(sregs, e->right->reg);
+		// 	break;	
 
 		case EXPR_ADD:
 			expr_codegen(sregs, writer, e->left);
@@ -200,7 +202,11 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				scratch_name(sregs, e->right->reg));
 
 			asm_to_write_section(writer, buffer, 1);
-	
+		
+			// snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+			// 	scratch_name(sregs, e->left->reg),
+			// 	scratch_name(sregs, e->left->reg));
+
 			e->reg = e->left->reg;
 			scratch_free(sregs, e->right->reg);
 			break;
@@ -246,7 +252,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_NAME:
 			e->reg = scratch_alloc(sregs);
-			
+
 			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
 				scratch_name(sregs, e->reg),
 				symbol_codegen(e->symbol));
@@ -255,6 +261,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			break;
 
 		case EXPR_INTEGER:
+			printf("Expression node value: %d\n", e->integer_value);
 			e->reg = scratch_alloc(sregs);
 			snprintf(buffer, sizeof(buffer), "\tmov %s, %d",
 				scratch_name(sregs, e->reg),
@@ -268,6 +275,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s) {
 	if (!sregs || !s) return;
 
+	char buffer[256];
+
 	switch (s->kind) {
 		case STMT_DECL:
 			decl_codegen(sregs, writer, s->decl);
@@ -277,6 +286,13 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			expr_codegen(sregs, writer, s->expr);
 			scratch_free(sregs, s->expr->reg);
 			break;
+		// case STMT_RETURN:
+		// 	expr_codegen(sregs, writer, s->expr);
+		// 	snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, s->expr->reg));
+		// 	asm_to_write_section(writer, buffer, 1);
+
+		// 	scratch_free(sregs, s->expr->reg);
+		// 	break;
 	}	
 	stmt_codegen(sregs, writer, s->next);
 }
@@ -326,6 +342,7 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 	}
 
 }
+
 
 void free_register(struct Register* reg) {
 	if (!reg) return;

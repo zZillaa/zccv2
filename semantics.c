@@ -436,6 +436,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 
 		if (kind == SYMBOL_LOCAL) {
 			d->symbol->u.local_var_index = local_var_counter++;
+			fprintf(stderr, "Created local variable %s with index %d\n", d->name, d->symbol->u.local_var_index);
 		}
 
 		scope_bind(stack, d->symbol);

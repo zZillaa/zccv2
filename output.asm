@@ -10,24 +10,16 @@ _start:
 
 	mov rbx, 5
 	mov [rbp - 8], rbx
-	mov rbx, 6
+	mov rbx, 1
 	mov [rbp - 16], rbx
 	mov rbx, [rbp - 8]
-	mov r8, 2
-	mov rax, rbx
-	imul r8
-	mov r9, rax
-	mov [rbp - 24], r9
 	mov r8, [rbp - 8]
-	mov r9, 1
-	mov rax, r8
-	cqo
-	idiv r9
-	mov r10, rax
-	mov [rbp - 32], r10
+	add rbx, r8
+	mov [rbp - 24], rbx
 
 	mov rsp, rbp
 	pop rbp
+	ret
 
 	mov rax, 60
 	xor rdi, rdi

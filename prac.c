@@ -1,9 +1,8 @@
 int compare() {
 
 	int x = 5;
-	int y = 6;
-	int z = y * 2;
-	int w = x / 1;
+	int y = 1;
+	int z = x + y;
 
 	return z;	
 }	
