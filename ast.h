@@ -69,14 +69,14 @@ typedef enum {
     EXPR_EQUAL,
     EXPR_NOT_EQUAL,
 
-    EXPR_NAME,
+    EXPR_NAME, // 17
     EXPR_ASSIGNMENT,
     
     EXPR_CALL,
     EXPR_ARG,
     
     EXPR_SUBSCRIPT,
-    EXPR_INTEGER,
+    EXPR_INTEGER, // 22
     EXPR_FLOAT,
     EXPR_CHARACTER,
     EXPR_BOOLEAN,
