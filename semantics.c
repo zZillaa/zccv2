@@ -298,12 +298,9 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
         	break;
         case EXPR_CHARACTER:
         case EXPR_BOOLEAN:
-        case EXPR_STRING: {
-            // For literals, no need for resolution
+        case EXPR_STRING: 
             break;
-        }
         default:
-            // Handle other expression types if necessary
             break;
     }
 }
@@ -465,6 +462,20 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 			}
 
 			current_function = NULL;
+		} else if (d->type->kind == TYPE_ARRAY) {
+			if (d->value && d->type->kind == EXPR_ARRAY) {
+				if (d->value->left) {
+					expr_resolve(d->value->left, stack);
+				}
+
+				if (d->value->right) {
+					struct expr* current = d->value->right;
+					while (current) {
+						expr_resolve(current, stack);
+						current = current->right;
+					}
+				}
+			}
 		}
 	
 		d = d->next;
