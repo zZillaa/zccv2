@@ -417,24 +417,23 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			break;
 
 		case EXPR_ARRAY_VAL:
-			snprintf(buffer, sizeof(buffer), "%d ",
-				e->integer_value);
-
-			asm_to_write_section(writer, buffer, 0);
+			printf("Found array value: %d\n", e->integer_value);
 			break;
 
 		case EXPR_ARRAY:
 			int label_num = label_create();
 			const char* id = label_name(label_num);
 			int array_size = e->left->integer_value;
-
-			// printf("Array Size: %d\n", array_size);
 			expr_codegen(sregs, writer, e->left);
 			
+
+			printf("e->right is: %p\n", (void*)e->right);
+
 			byte_size_t byte_t = get_byte_size(e->left->kind);
 			request_byte_t request_t = get_request_type(byte_t);
 
 			if (!e->right) {
+				printf("No initialization values\n");
 				snprintf(buffer, sizeof(buffer), "\t%s: %s %d",
 					id,
 					request_to_string(byte_t), 
@@ -443,20 +442,24 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				asm_to_write_section(writer, buffer, 0);
 
 			} else {
-				// printf("I am here for array values\n");
-				snprintf(buffer, sizeof(buffer), "\t%s %s",
+				char temp_buffer[1024] = {0};
+				snprintf(temp_buffer, sizeof(temp_buffer), "\t%s %s",
 					id,
 					bytes_to_string(byte_t));	
-
-				asm_to_write_section(writer, buffer, 0);
 
 				struct expr* current = e->right;
 
 				while (current) {
-					// printf("About to print array values\n");
-					expr_codegen(sregs, writer, current);
+					char value_buffer[32];
+					snprintf(value_buffer, sizeof(value_buffer),
+						current->right ? "%d, " : "%d",
+						current->integer_value);
+
+					strcat(temp_buffer, value_buffer);
+					printf("Array value: %d\n", current->integer_value);
 					current = current->right;
 				}
+				asm_to_write_section(writer, temp_buffer, 0);
 			}
 
 			scratch_free(sregs, e->left->reg); 

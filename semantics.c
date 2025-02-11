@@ -515,7 +515,6 @@ void program_resolve(struct program* p, struct stack* stack) {
 }
 
 bool type_equals(struct type* a, struct type* b) {
-	printf("AND im here\n");
 	if (!a || !b) return false;
 
 	if (a->kind == b->kind) {
@@ -542,13 +541,11 @@ bool type_equals(struct type* a, struct type* b) {
 
 			case TYPE_ARRAY:
 				if (!a->subtype || !b->subtype) {
-					printf("OR am i here\n");
 					return false;
 				}
 				return type_equals(a->subtype, b->subtype);
 
 			default:
-				printf("I am here\n");
 				return false;
 		}
 	}
@@ -645,6 +642,10 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
         }
 
     	case EXPR_ARRAY_VAL:
+    		struct type* int_type = type_create(TYPE_INTEGER, NULL, NULL);
+    		result = type_create(TYPE_ARRAY, int_type, NULL);
+    		break;
+
         case EXPR_INTEGER:
             result = type_create(TYPE_INTEGER, NULL, NULL);
             break;
@@ -829,8 +830,31 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                     scope_bind(stack, d->symbol);
                 }
             }
-            
-            if (d->value) {
+
+            if (d->type->kind == TYPE_ARRAY) {
+            	if (d->value && d->value->kind == EXPR_ARRAY) {
+            		if (d->value->left) {
+            			struct type* size_type = expr_typecheck(d->value->left, stack);
+            			if (size_type->kind != TYPE_INTEGER) {
+            				fprintf(stderr, "Error: Array size must be integer\n");
+            			}
+            			type_delete(size_type);
+            		}
+
+            		if (d->value->right) {
+            			struct expr* init_value = d->value->right;
+            			while (init_value) {
+            				struct type* value_type = expr_typecheck(init_value, stack);
+            				if (!type_equals(value_type, d->type->subtype)) {
+            					fprintf(stderr, "Error: Array initialization value type mismatch\n");
+            				}
+            				type_delete(value_type);
+            				init_value = init_value->right;
+            			}
+            		}
+            	}
+
+            } else if (d->value) {
                 struct type* value_type = expr_typecheck(d->value, stack);
                 
                 if (!type_equals(value_type, d->type)) {
@@ -838,6 +862,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                 }
                 type_delete(value_type);
             }
+            
         }
         
         d = d->next;

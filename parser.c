@@ -753,11 +753,12 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
         if (tokens[*tokenIdx].type == TOKEN_LEFT_BRACE) {
             (*tokenIdx)++;
             array_expr->right = parse_array_init_list(tokens, tokenIdx);
-            printf("ARRAY INIT VALUES:\n");
-            while (array_expr->right) {
-                struct expr* next = array_expr->right->right;
-                printf("DEGENERATE TREE NODE VALUE: '%d'\n", array_expr->right->integer_value);
-                array_expr->right = next;
+            
+            struct expr* current = array_expr->right;
+            while (current) {
+                current->kind = EXPR_ARRAY_VAL;
+                printf("DEGENERATE TREE NODE VALUE: '%d'\n", current->integer_value);
+                current = current->right;
             }
         }
         /*
