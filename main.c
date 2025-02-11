@@ -77,7 +77,6 @@ int main(int argc, char **argv) {
         program_resolve(ast, stack);    
         program_typecheck(ast, stack);
 
-
         struct RegisterTable* sregs = create_register_table();
         struct AsmWriter* writer = create_asm_writer("output.asm");
         decl_codegen(sregs, writer, ast->declaration);

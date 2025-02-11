@@ -243,10 +243,15 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
     		} else {
     			if (expr->left) expr_resolve(expr->left, stack);
 
-    			struct expr* current = expr->right;
-    			while (current) {
-    				expr_resolve(current, stack);
-    				current = current->right;
+    			if (expr->right) {
+	    			struct expr* current = expr->right;
+	    			while (current) {
+	    				expr_resolve(current, stack);
+	    				current = current->right;
+	    			}
+
+    			} else {
+    				fprintf(stderr, "Error: array does not have initial values\n");
     			}
     		}
     		expr->symbol = symbol;
@@ -463,7 +468,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 
 			current_function = NULL;
 		} else if (d->type->kind == TYPE_ARRAY) {
-			if (d->value && d->type->kind == EXPR_ARRAY) {
+			if (d->value && d->value->kind == EXPR_ARRAY) {
 				if (d->value->left) {
 					expr_resolve(d->value->left, stack);
 				}
@@ -653,8 +658,8 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
         }
 
     	case EXPR_ARRAY_VAL:
-    		struct type* int_type = type_create(TYPE_INTEGER, NULL, NULL);
-    		result = type_create(TYPE_ARRAY, int_type, NULL);
+    		printf("I have an array value\n");
+    		result = type_create(TYPE_INTEGER, NULL, NULL);
     		break;
 
         case EXPR_INTEGER:
@@ -680,6 +685,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
                 return type_create(TYPE_UNKNOWN, NULL, NULL);
             }
             e->symbol = sym;
+            
             
             // Check array index expression
             if (e->right) {
@@ -843,6 +849,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
             }
 
             if (d->type->kind == TYPE_ARRAY) {
+            	printf("Array typecheck - value kind: %d\n", d->value ? d->value->kind : - 1);
             	if (d->value && d->value->kind == EXPR_ARRAY) {
             		if (d->value->left) {
             			struct type* size_type = expr_typecheck(d->value->left, stack);
@@ -854,12 +861,15 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
 
             		if (d->value->right) {
             			struct expr* init_value = d->value->right;
+         
             			while (init_value) {
             				struct type* value_type = expr_typecheck(init_value, stack);
             				if (!type_equals(value_type, d->type->subtype)) {
             					fprintf(stderr, "Error: Array initialization value type mismatch\n");
             				}
             				type_delete(value_type);
+
+            				
             				init_value = init_value->right;
             			}
             		}

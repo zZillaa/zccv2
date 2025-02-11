@@ -761,15 +761,6 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
                 current = current->right;
             }
         }
-        /*
-        Have to change types of array values because code generator recognizes the elements
-        as integers and starts allocating registers
-        */
-        while (array_expr->right) {
-            struct expr* next = array_expr->right->right;
-            array_expr->kind = EXPR_ARRAY_VAL;
-            array_expr->right = next;
-        }
 
         struct decl* d = decl_create(name, array_type, array_expr, NULL, NULL);
 
@@ -999,6 +990,7 @@ void print_expr(struct expr* expr, int indent) {
         case EXPR_NAME:
             printf("NAME: %s\n", expr->name);
             break;
+        case EXPR_ARRAY_VAL:
         case EXPR_INTEGER:
             printf("INTEGER: %d\n", expr->integer_value);
             break;
