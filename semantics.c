@@ -292,6 +292,7 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
             }
             break;
         }
+    	case EXPR_ARRAY_VAL:
         case EXPR_INTEGER:
         	printf("No need to resolve: '%d'\n", expr->integer_value);
         	break;
@@ -514,6 +515,7 @@ void program_resolve(struct program* p, struct stack* stack) {
 }
 
 bool type_equals(struct type* a, struct type* b) {
+	printf("AND im here\n");
 	if (!a || !b) return false;
 
 	if (a->kind == b->kind) {
@@ -540,17 +542,17 @@ bool type_equals(struct type* a, struct type* b) {
 
 			case TYPE_ARRAY:
 				if (!a->subtype || !b->subtype) {
-					printf("Warning: Array type comparison with null subtype\n");
+					printf("OR am i here\n");
 					return false;
 				}
 				return type_equals(a->subtype, b->subtype);
 
 			default:
+				printf("I am here\n");
 				return false;
 		}
 	}
 
-	return false;
 }
 
 struct type* type_create(type_t kind, struct type* subtype, struct param_list* params) {
@@ -642,6 +644,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
             break;
         }
 
+    	case EXPR_ARRAY_VAL:
         case EXPR_INTEGER:
             result = type_create(TYPE_INTEGER, NULL, NULL);
             break;
@@ -829,6 +832,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
             
             if (d->value) {
                 struct type* value_type = expr_typecheck(d->value, stack);
+                
                 if (!type_equals(value_type, d->type)) {
                     fprintf(stderr, "Error: Type mismatch in declaration of '%s'\n", d->name);
                 }

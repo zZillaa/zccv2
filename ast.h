@@ -82,7 +82,8 @@ typedef enum {
     EXPR_BOOLEAN,
     EXPR_STRING,
     EXPR_ARRAY,
-    
+    EXPR_ARRAY_VAL,
+
     EXPR_UNKNOWN
 
 } expr_t;

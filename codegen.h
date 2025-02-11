@@ -33,6 +33,27 @@ struct AsmWriter {
 	long current_pos;
 };
 
+typedef enum {
+	DB,
+	DD,
+	DW,
+	DQ,
+	BYTE_UNKNOWN
+} byte_size_t;
+
+typedef enum {
+	RESB,
+	RESD,
+	RESW,
+	RESQ,
+	RES_UNKNOWN
+} request_byte_t;
+
+byte_size_t get_byte_type(expr_t kind);
+request_byte_t get_request_type(byte_size_t kind);
+char* bytes_to_string(byte_size_t kind);
+char* request_to_string(byte_size_t kind);
+
 int scratch_alloc(struct RegisterTable* sregs);
 void scratch_free(struct RegisterTable* sregs, int r);
 const char* scratch_name(struct RegisterTable* sregs, int r);
