@@ -176,8 +176,8 @@ const char* symbol_codegen(struct symbol* sym) {
 	switch (sym->kind) {
 		case SYMBOL_LOCAL:	
 			if (sym->type->kind == TYPE_INTEGER) {
-				printf("Debug - Variable: %s, kind: %d, Local index: %d\n",
-					sym->name, sym->kind, sym->u.local_var_index);
+				// printf("Debug - Variable: %s, kind: %d, Local index: %d\n",
+					// sym->name, sym->kind, sym->u.local_var_index);
 				snprintf(buffer, sizeof(buffer), "rbp - %d", 8 * (sym->u.local_var_index + 1));
 
 			}
@@ -276,7 +276,6 @@ char* bytes_to_string(byte_size_t kind) {
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e) {
 	if (!sregs || !e) return;
 
-	printf("Expression kind: %d\n", e->kind);
 
 	char buffer[256];
 
@@ -429,15 +428,11 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			const char* id = label_name(label_num);
 			int array_size = e->left->integer_value;
 
-			printf("Array Size: %d\n", array_size);
+			// printf("Array Size: %d\n", array_size);
 			expr_codegen(sregs, writer, e->left);
 			
 			byte_size_t byte_t = get_byte_size(e->left->kind);
 			request_byte_t request_t = get_request_type(byte_t);
-
-			snprintf(buffer, sizeof(buffer), "\t%s: resq %d ",
-				id, array_size);
-
 
 			if (!e->right) {
 				snprintf(buffer, sizeof(buffer), "\t%s: %s %d",
@@ -448,7 +443,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				asm_to_write_section(writer, buffer, 0);
 
 			} else {
-				printf("I am here for array values\n");
+				// printf("I am here for array values\n");
 				snprintf(buffer, sizeof(buffer), "\t%s %s",
 					id,
 					bytes_to_string(byte_t));	
@@ -458,7 +453,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				struct expr* current = e->right;
 
 				while (current) {
-					printf("About to print array values\n");
+					// printf("About to print array values\n");
 					expr_codegen(sregs, writer, current);
 					current = current->right;
 				}
