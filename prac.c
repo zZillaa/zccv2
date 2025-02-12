@@ -1,10 +1,10 @@
-int function() {
-	int x = 5;
-	int y = x + 2;
-	int z = 3 + x;
+int arr[5] = {1, 2, 3, 4, 5};
+int z[3] = {0, 0, 0};
+int s[2] = {2, 1};
 
-	int arr[5] = {1, 2, 3, 4, 5};
-	int other[3];
+int function() {
+	int x = 3;
+	int z = 2 + x;
 
 	return z;
 }

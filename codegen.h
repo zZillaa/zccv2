@@ -30,6 +30,7 @@ struct AsmWriter {
 	const char* filename;
 	long data_section;
 	long text_section;
+	long start_section;
 	long current_pos;
 };
 
@@ -49,6 +50,13 @@ typedef enum {
 	RES_UNKNOWN
 } request_byte_t;
 
+typedef enum {
+	DATA_DIRECTIVE,
+	TEXT_DIRECTIVE,
+	GLOBAL_DIRECTIVE
+} section_t;
+
+
 byte_size_t get_byte_type(expr_t kind);
 request_byte_t get_request_type(byte_size_t kind);
 char* bytes_to_string(byte_size_t kind);
@@ -61,6 +69,7 @@ struct Register* create_register(register_state_t state, const char* name);
 struct RegisterTable* create_register_table();
 
 struct AsmWriter* create_asm_writer(const char* filename);
+long get_pos_from_directive(struct AsmWriter* writer, section_t directive_kind);
 void asm_write_to_section(struct AsmWriter* writer, const char* content, int section_type);
 void free_asm_writer(struct AsmWriter* writer);
 

@@ -1,12 +1,11 @@
 section .data
 	arr dq 1, 2, 3, 4, 5
-	other: resq 3
+	z dq 0, 0, 0
+	s	push rbp
+	mov rbp, rsp
+	sub rsp, 32
 
-section .text
-global _start
 
-_start:
-	
 	mov rsp, rbp
 	pop rbp
 	ret
@@ -14,7 +13,9 @@ _start:
 	mov rax, 60
 	xor rdi, rdi
 	syscall
-push rbp
-	mov rbp, rsp
-	sub rsp, 32
+ dq 2, 1
 
+section .text
+global _start
+
+_start:
