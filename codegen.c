@@ -82,7 +82,7 @@ void asm_to_write_section(struct AsmWriter* writer, const char* content, int sec
 	}
 }
 */
-void asm_to_write_section(struct AsmWriter* writer, const char* content, int section_type) {
+void asm_to_write_section(struct AsmWriter* writer, char* content, int section_type) {
     if (!writer || !content) return;
 
     // Save current position
@@ -165,7 +165,7 @@ const char* label_name(int label) {
 	return buffer;
 }
 
-const char* symbol_codegen(struct symbol* sym) {
+char* symbol_codegen(struct symbol* sym) {
 	if (!sym) {
 		fprintf(stderr, "Error: symbol is NULL\n");
 		return NULL;
@@ -198,7 +198,7 @@ const char* symbol_codegen(struct symbol* sym) {
 
 byte_size_t get_byte_size(expr_t kind) {
 	switch (kind) {
-		case EXPR_INTEGER:
+		case EXPR_ARRAY_VAL:
 			return DQ;
 
 		case EXPR_STRING:
@@ -425,7 +425,10 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			// Do not need to generate labels for arrays, just use their names.
 			// const char* id = label_name(label_num);
 			const char* name = strdup(e->name);
-			int array_size = e->left->integer_value;
+			int array_size;
+			if (e->left) {
+				array_size = e->left->integer_value;
+			}
 			expr_codegen(sregs, writer, e->left);
 			
 
@@ -520,17 +523,10 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
             snprintf(buffer, sizeof(buffer), "\n\tmov rsp, rbp\n\tpop rbp\n\tret\n\n\tmov rax, 60\n\txor rdi, rdi\n\tsyscall");
             asm_to_write_section(writer, buffer, 1);
 
-		} else if (d->value) {
-			expr_codegen(sregs, writer, d->value);
-
-			snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-				symbol_codegen(d->symbol),
-				scratch_name(sregs, d->value->reg));
-
-			asm_to_write_section(writer, buffer, 1);
-
-			scratch_free(sregs, d->value->reg);
-
+		} else if (d->type->kind == TYPE_ARRAY) {
+			if (d->value && d->value->kind == EXPR_ARRAY) {
+				expr_codegen(sregs, writer, d->value);
+			}
 		}
 
 		d = d->next;

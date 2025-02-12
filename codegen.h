@@ -68,7 +68,7 @@ void free_asm_writer(struct AsmWriter* writer);
 int label_create();
 const char* label_name( int label );
 
-const char* symbol_codegen(struct symbol* sym);
+char* symbol_codegen(struct symbol* sym);
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);
 void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s);
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d);

@@ -3,10 +3,6 @@ section .data
 	other: resq 3
 
 section .text
-global _start	mov [arr], (nul	mov [other], (null)
-l)
-	mov rax, 3
-
+global _start
 
 _start:
-	mov rax, 5

@@ -735,6 +735,7 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
         type_delete(array_type);
         return NULL;
     }
+    size_expr->kind = EXPR_ARRAY_VAL;
 
     struct expr* array_expr = expr_create(EXPR_ARRAY, size_expr, NULL);
     if (!array_expr) {
