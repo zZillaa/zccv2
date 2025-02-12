@@ -6,3 +6,15 @@ section .text
 global _start
 
 _start:
+	
+	mov rsp, rbp
+	pop rbp
+	ret
+
+	mov rax, 60
+	xor rdi, rdi
+	syscall
+push rbp
+	mov rbp, rsp
+	sub rsp, 32
+

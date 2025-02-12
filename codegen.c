@@ -56,7 +56,6 @@ struct AsmWriter* create_asm_writer(const char* filename) {
 	fprintf(writer->file, "global _start\n\n_start:\n");
 	writer->current_pos = ftell(writer->file);
 
-
 	return writer;
 }
 /*
