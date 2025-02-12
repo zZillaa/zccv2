@@ -18,14 +18,13 @@ struct symbol* create_symbol(symbol_t kind, struct type* type, char* name) {
 		free(symbol);
 		return NULL;
 	}
-	printf("\nSymbol creation successful | name: '%s' | type : %d\n", symbol->name, symbol->type->kind);
-	printf("Creating symbol %s with kind %d and index %d\n", name, kind, symbol->u.local_var_index);
+	// printf("\nSymbol creation successful | name: '%s' | type : %d\n", symbol->name, symbol->type->kind);
+	// printf("Creating symbol %s with kind %d and index %d\n", name, kind, symbol->u.local_var_index);
 	return symbol;
 }
 
 struct stack* create_stack() {
 	struct stack* stack = malloc(sizeof(struct stack));
-
 	if (!stack) {
 		fprintf(stderr, "Failed to allocate memory for stack\n");
 		return NULL;
@@ -192,10 +191,10 @@ void scope_bind(struct stack* stack, struct symbol* symbol) {
 	struct symbol_table* current_table = stack->symbol_tables[stack->top];
 	if (!current_table) return;
 
-	if (is_symbol_redeclared(current_table, symbol->name)) {
-		fprintf(stderr , "Error: Symbol '%s' redeclared in the name scope\n", symbol->name);
-		return;
-	}
+	// if (is_symbol_redeclared(current_table, symbol->name)) {
+	// 	fprintf(stderr , "Error: Symbol '%s' redeclared in the name scope\n", symbol->name);
+	// 	return;
+	// }
 
 	symbol->next = current_table->symbol;
 	current_table->symbol = symbol;
@@ -240,20 +239,21 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
     		struct symbol* symbol = scope_lookup(stack, expr->name, &found_scope);
     		if (!symbol) {
     			fprintf(stderr, "Error: Undefined symbol '%s'\n", expr->name);
-    		} else {
-    			if (expr->left) expr_resolve(expr->left, stack);
+    		} 
+    		// else {
+    		// 	if (expr->left) expr_resolve(expr->left, stack);
 
-    			if (expr->right) {
-	    			struct expr* current = expr->right;
-	    			while (current) {
-	    				expr_resolve(current, stack);
-	    				current = current->right;
-	    			}
+    			// if (expr->right) {
+	    		// 	struct expr* current = expr->right;
+	    		// 	while (current) {
+	    		// 		expr_resolve(current, stack);
+	    		// 		current = current->right;
+	    		// 	}
 
-    			} else {
-    				fprintf(stderr, "Error: array does not have initial values\n");
-    			}
-    		}
+    			// } else {
+    			// 	fprintf(stderr, "Error: array does not have initial values\n");
+    			// }
+    		// }
     		expr->symbol = symbol;
     		break;
     	} 
@@ -297,7 +297,10 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
             }
             break;
         }
+
     	case EXPR_ARRAY_VAL:
+    		printf("Here is the array value: %d\n", expr->integer_value);
+        	break;
         case EXPR_INTEGER:
         	printf("No need to resolve: '%d'\n", expr->integer_value);
         	break;
@@ -395,7 +398,7 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 			case STMT_RETURN:
 				if (stmt->expr) {					
 					expr_resolve(stmt->expr, stack);
-					debug_print_scope_stack(stack, "After return expr resolve");
+					debug_print_scope_stack(stack, "After return expr resolve\n");
 				}
 				break;
 			default:
@@ -405,7 +408,7 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 
 		stmt = stmt->next;
 	}
-	debug_print_scope_stack(stack, "End of stmt_resolve");
+	debug_print_scope_stack(stack, "End of stmt_resolven\n");
 }
 
 
@@ -422,7 +425,6 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 
 		symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
 		struct symbol* existing_symbol = scope_lookup_current(stack, d->name);
-
 		if (existing_symbol) {
 			fprintf(stderr, "Error: Variable '%s' redeclared in the same scope\n", d->name);
 			d->symbol = existing_symbol;
@@ -472,8 +474,9 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 				if (d->value->left) {
 					expr_resolve(d->value->left, stack);
 				}
-
+				printf("Im about to resolve array values\n");
 				if (d->value->right) {
+					printf("Next step to resolving array values\n");
 					struct expr* current = d->value->right;
 					while (current) {
 						expr_resolve(current, stack);
@@ -526,7 +529,9 @@ void print_symbol_table(struct stack* stack) {
 void program_resolve(struct program* p, struct stack* stack) {
 	if (!p) return;
 
+	printf("About to resolve program!\n");
 	if (p->declaration) decl_resolve(p->declaration, stack);
+	printf("\nFinished resolving program!\n");
 
 }
 
@@ -658,7 +663,6 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
         }
 
     	case EXPR_ARRAY_VAL:
-    		printf("I have an array value\n");
     		result = type_create(TYPE_INTEGER, NULL, NULL);
     		break;
 
@@ -851,6 +855,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
             if (d->type->kind == TYPE_ARRAY) {
             	printf("Array typecheck - value kind: %d\n", d->value ? d->value->kind : - 1);
             	if (d->value && d->value->kind == EXPR_ARRAY) {
+            		
             		if (d->value->left) {
             			struct type* size_type = expr_typecheck(d->value->left, stack);
             			if (size_type->kind != TYPE_INTEGER) {

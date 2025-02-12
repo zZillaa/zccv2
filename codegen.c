@@ -422,7 +422,9 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_ARRAY:
 			int label_num = label_create();
-			const char* id = label_name(label_num);
+			// Do not need to generate labels for arrays, just use their names.
+			// const char* id = label_name(label_num);
+			const char* name = strdup(e->name);
 			int array_size = e->left->integer_value;
 			expr_codegen(sregs, writer, e->left);
 			
@@ -435,7 +437,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			if (!e->right) {
 				printf("No initialization values\n");
 				snprintf(buffer, sizeof(buffer), "\t%s: %s %d",
-					id,
+					name,
 					request_to_string(byte_t), 
 					array_size);
 
@@ -444,7 +446,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			} else {
 				char temp_buffer[1024] = {0};
 				snprintf(temp_buffer, sizeof(temp_buffer), "\t%s %s",
-					id,
+					name,
 					bytes_to_string(byte_t));	
 
 				struct expr* current = e->right;
@@ -452,11 +454,10 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				while (current) {
 					char value_buffer[32];
 					snprintf(value_buffer, sizeof(value_buffer),
-						current->right ? "%d, " : "%d",
+						current->right ? " %d," : " %d",
 						current->integer_value);
 
 					strcat(temp_buffer, value_buffer);
-					printf("Array value: %d\n", current->integer_value);
 					current = current->right;
 				}
 				asm_to_write_section(writer, temp_buffer, 0);

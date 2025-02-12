@@ -757,12 +757,13 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
             struct expr* current = array_expr->right;
             while (current) {
                 current->kind = EXPR_ARRAY_VAL;
-                printf("DEGENERATE TREE NODE VALUE: '%d'\n", current->integer_value);
+                printf("DEGENERATE TREE NODE VALUE: '%d' type: ('%d')\n", current->integer_value, current->kind);
                 current = current->right;
             }
         }
 
         struct decl* d = decl_create(name, array_type, array_expr, NULL, NULL);
+        printf("Successfully created array decl with type: %d EXPR KIND: %d and EXPR KIND VAL: %d\n " ,d->type->kind, d->value->kind, d->value->right->kind);
 
         return d;
     }
@@ -970,20 +971,19 @@ void print_expr(struct expr* expr, int indent) {
     
     switch(expr->kind) {
         case EXPR_ARRAY:
-            printf("ARRAY:\n");for (int i = 0; i < indent + 1; i++) printf(" ");
-                //     printf("INIT VALUES:\n");
-                //     print_expr(expr->right, indent + 2);
+            printf("ARRAY:\n");
+            for (int i = 0; i < indent + 1; i++) printf(" ");
             for (int i = 0; i < indent + 1; i++) printf(" ");
                 printf("SIZE:\n");
-            print_expr(expr->left, indent + 2);
+
+            if (expr->left) print_expr(expr->left, indent + 2);
             if (expr->right) {
                 for (int i = 0; i < indent + 1; i++) printf(" ");
                     printf("INIT VALUES:\n");
-                //     print_expr(expr->right, indent + 2);
-                while (expr->right) {
-                    print_expr(expr->right, indent + 2);
-                    struct expr* next = expr->right->right;
-                    expr->right = next;
+                struct expr* current = expr->right;
+                while (current) {
+                    print_expr(current, indent + 2);
+                    current = current->right;
                 }
             }
             break;
