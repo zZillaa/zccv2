@@ -53,7 +53,6 @@ typedef enum {
 typedef enum {
 	DATA_DIRECTIVE,
 	TEXT_DIRECTIVE,
-	GLOBAL_DIRECTIVE
 } section_t;
 
 

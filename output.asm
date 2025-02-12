@@ -1,7 +1,8 @@
 section .data
 	arr dq 1, 2, 3, 4, 5
 	z dq 0, 0, 0
-	s	push rbp
+	s dq 2, 1
+	push rbp
 	mov rbp, rsp
 	sub rsp, 32
 
@@ -13,7 +14,6 @@ section .data
 	mov rax, 60
 	xor rdi, rdi
 	syscall
- dq 2, 1
 
 section .text
 global _start
