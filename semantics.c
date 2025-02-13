@@ -241,18 +241,11 @@ void expr_resolve(struct expr* expr, struct stack* stack) {
     		if (!symbol) {
     			fprintf(stderr, "Error: Undefined symbol '%s'\n", expr->name);
     		} else {
-    			if (expr->left) expr_resolve(expr->left, stack);
-
-    			if (expr->right) {
-	    			struct expr* current = expr->right;
-	    			while (current) {
-	    				expr_resolve(current, stack);
-	    				current = current->right;
-	    			}
-
-    			} else {
-    				fprintf(stderr, "Error: array does not have initial values\n");
-    			}
+    			if (expr->left) {
+    				printf("Resolving array size expression\b");
+    				expr_resolve(expr->left, stack);
+    			} 
+    			
     		}
     		expr->symbol = symbol;
     		break;
@@ -409,82 +402,151 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 }
 
 
-void decl_resolve(struct decl* d, struct stack* stack) {
-	if (!d || !stack) return;
-	static int local_var_counter = 0;
 
-	while (d) {
-		if (!d->name || !d->type) {
-			fprintf(stderr, "Error: Invalid declaration (missing name or type)\n");
-			d = d->next;
-			continue;
-		}
+// void decl_resolve(struct decl* d, struct stack* stack) {
+// 	if (!d || !stack) return;
+// 	static int local_var_counter = 0;
 
-		symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
-		struct symbol* existing_symbol = scope_lookup_current(stack, d->name);
+// 	while (d) {
+// 		if (!d->name || !d->type) {
+// 			fprintf(stderr, "Error: Invalid declaration (missing name or type)\n");
+// 			d = d->next;
+// 			continue;
+// 		}
 
-		if (existing_symbol) {
-			fprintf(stderr, "Error: Variable '%s' redeclared in the same scope\n", d->name);
-			d->symbol = existing_symbol;
-			d = d->next;
-			continue;
-		}
+// 		symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
+// 		struct symbol* existing_symbol = scope_lookup_current(stack, d->name);
 
-		d->symbol = create_symbol(kind, d->type, d->name);
-		if (!d->symbol) {
-			fprintf(stderr, "Error: Failed to create symbol for '%s'\n", d->name);
-			d = d->next;
-			continue;
-		}
+// 		if (existing_symbol) {
+// 			fprintf(stderr, "Error: Variable '%s' redeclared in the same scope\n", d->name);
+// 			d->symbol = existing_symbol;
+// 			d = d->next;
+// 			continue;
+// 		}
 
-		if (kind == SYMBOL_LOCAL) {
-			d->symbol->u.local_var_index = local_var_counter++;
-			printf("Resolution - Symbol address: %p, name: %s, index: %d\n",
-				(void*)d->symbol, d->name, d->symbol->u.local_var_index);
-			fprintf(stderr, "Created local variable %s with index %d\n", d->name, d->symbol->u.local_var_index);
-		}
+// 		d->symbol = create_symbol(kind, d->type, d->name);
+// 		if (!d->symbol) {
+// 			fprintf(stderr, "Error: Failed to create symbol for '%s'\n", d->name);
+// 			d = d->next;
+// 			continue;
+// 		}
 
-		scope_bind(stack, d->symbol);
+// 		if (kind == SYMBOL_LOCAL) {
+// 			d->symbol->u.local_var_index = local_var_counter++;
+// 			printf("Resolution - Symbol address: %p, name: %s, index: %d\n",
+// 				(void*)d->symbol, d->name, d->symbol->u.local_var_index);
+// 			fprintf(stderr, "Created local variable %s with index %d\n", d->name, d->symbol->u.local_var_index);
+// 		}
+
+// 		scope_bind(stack, d->symbol);
 
 
-		if (d->value) {
-			expr_resolve(d->value, stack);
-		}
+// 		if (d->value) {
+// 			expr_resolve(d->value, stack);
+// 		}
 		
-		if (d->type->kind == TYPE_FUNCTION) {
-			current_function = d;
-			int original_scope = stack->top;
-			local_var_counter = 0;
+// 		if (d->type->kind == TYPE_FUNCTION) {
+// 			current_function = d;
+// 			int original_scope = stack->top;
+// 			local_var_counter = 0;
 
-			scope_enter(stack, NULL);
-			param_list_resolve(d->type->params, stack);
+// 			scope_enter(stack, NULL);
+// 			param_list_resolve(d->type->params, stack);
 			
-			scope_enter(stack, NULL);
-			stmt_resolve(d->code, stack);
+// 			scope_enter(stack, NULL);
+// 			stmt_resolve(d->code, stack);
 			
-			while (stack->top > original_scope) {
-				scope_exit(stack);
-			}
+// 			while (stack->top > original_scope) {
+// 				scope_exit(stack);
+// 			}
 
-			current_function = NULL;
-		} else if (d->type->kind == TYPE_ARRAY) {
-			if (d->value && d->value->kind == EXPR_ARRAY) {
-				if (d->value->left) {
-					expr_resolve(d->value->left, stack);
-				}
+// 			current_function = NULL;
+// 		} else if (d->type->kind == TYPE_ARRAY) {
+// 			if (d->value && d->value->kind == EXPR_ARRAY) {
+// 				if (d->value->left) {
+// 					expr_resolve(d->value->left, stack);
+// 				}
 
-				if (d->value->right) {
-					struct expr* current = d->value->right;
-					while (current) {
-						expr_resolve(current, stack);
-						current = current->right;
-					}
-				}
-			}
-		}
+// 				if (d->value->right) {
+// 					struct expr* current = d->value->right;
+// 					while (current) {
+// 						expr_resolve(current, stack);
+// 						current = current->right;
+// 					}
+// 				}
+// 			}
+// 		}
 	
-		d = d->next;
-	}
+// 		d = d->next;
+// 	}
+// }
+
+void decl_resolve(struct decl* d, struct stack* stack) {
+    if (!d || !stack)
+        return;
+    static int local_var_counter = 0;
+
+    while (d) {
+        if (!d->name || !d->type) {
+            fprintf(stderr, "Error: Invalid declaration (missing name or type)\n");
+            d = d->next;
+            continue;
+        }
+
+        symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
+        struct symbol* existing_symbol = scope_lookup_current(stack, d->name);
+        if (existing_symbol) {
+            fprintf(stderr, "Error: Variable '%s' redeclared in the same scope\n", d->name);
+            d->symbol = existing_symbol;
+            d = d->next;
+            continue;
+        }
+
+        d->symbol = create_symbol(kind, d->type, d->name);
+        if (!d->symbol) {
+            fprintf(stderr, "Error: Failed to create symbol for '%s'\n", d->name);
+            d = d->next;
+            continue;
+        }
+
+        if (kind == SYMBOL_LOCAL) {
+            d->symbol->u.local_var_index = local_var_counter++;
+            printf("Resolution - Symbol address: %p, name: %s, index: %d\n",
+                   (void*)d->symbol, d->name, d->symbol->u.local_var_index);
+        }
+        scope_bind(stack, d->symbol);
+
+        if (d->type->kind == TYPE_ARRAY) {
+            if (d->value && d->value->kind == EXPR_ARRAY) {
+                // Resolve and type check the size expression
+                if (d->value->left) {
+                    expr_resolve(d->value->left, stack);
+                    struct type* size_type = expr_typecheck(d->value->left, stack);
+                    if (size_type->kind != TYPE_INTEGER) {
+                        fprintf(stderr, "Error: Array size must be an integer\n");
+                    }
+                    type_delete(size_type);
+                }
+
+                // Resolve and type check each initializer
+                if (d->value->right) {
+                    struct type* elem_type = d->type->subtype;
+                    struct expr* current = d->value->right;
+                    while (current) {
+                        expr_resolve(current, stack);
+                        struct type* init_type = expr_typecheck(current, stack);
+                        if (!type_equals(init_type, elem_type)) {
+                            fprintf(stderr, "Error: Initializer type mismatch in array '%s'\n", d->name);
+                        }
+                        type_delete(init_type);
+                        current = current->right;
+                    }
+                }
+            }
+        }
+
+        d = d->next;
+    }
 }
 
 void free_symbol(struct symbol* symbol) {
@@ -677,28 +739,42 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
         case EXPR_BOOLEAN:
             result = type_create(TYPE_BOOLEAN, NULL, NULL);
             break;
-
         case EXPR_ARRAY: {
-            struct symbol* sym = scope_lookup(stack, e->name, NULL);
-            if (!sym) {
-                fprintf(stderr, "Error: Array '%s' not found\n", e->name);
-                return type_create(TYPE_UNKNOWN, NULL, NULL);
-            }
-            e->symbol = sym;
+		       // Handle array declarations (not accesses)
+		    if (e->symbol && e->symbol->type->kind == TYPE_ARRAY) {
+		            // This is part of a declaration; initializers already checked in decl_resolve
+		        return type_copy(e->symbol->type);
+		    } else {
+		            // Handle array access (e.g., arr[5])
+		        struct type* index_type = expr_typecheck(e->right, stack);
+		        if (index_type->kind != TYPE_INTEGER) {
+		            fprintf(stderr, "Error: Array index must be integer type\n");
+		        }
+		        type_delete(index_type);
+		        return type_copy(e->symbol->type->subtype);
+		    }
+		}
+        // case EXPR_ARRAY: {
+        //     struct symbol* sym = scope_lookup(stack, e->name, NULL);
+        //     if (!sym) {
+        //         fprintf(stderr, "Error: Array '%s' not found\n", e->name);
+        //         return type_create(TYPE_UNKNOWN, NULL, NULL);
+        //     }
+        //     e->symbol = sym;
             
             
-            // Check array index expression
-            if (e->right) {
-                struct type* index_type = expr_typecheck(e->right, stack);
-                if (index_type->kind != TYPE_INTEGER) {
-                    fprintf(stderr, "Error: Array index must be integer type\n");
-                }
-                type_delete(index_type);
-            }
+        //     // Check array index expression
+        //     if (e->right) {
+        //         struct type* index_type = expr_typecheck(e->right, stack);
+        //         if (index_type->kind != TYPE_INTEGER) {
+        //             fprintf(stderr, "Error: Array index must be integer type\n");
+        //         }
+        //         type_delete(index_type);
+        //     }
             
-            result = type_copy(sym->type->subtype);
-            break;
-        }
+        //     result = type_copy(sym->type->subtype);
+        //     break;
+        // }
 
         case EXPR_INCREMENT:
         case EXPR_DECREMENT:
@@ -798,97 +874,168 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
 
 void decl_typecheck(struct decl* d, struct stack* stack) {
     if (!d) return;
-
     static int local_var_counter = 0;
-
     while (d) {
-        if (d->type->kind == TYPE_FUNCTION) {
-        	local_var_counter = 0;
-            current_function = d;
-            
-            scope_enter(stack, NULL);
-            
-            // Rebuild parameter scope with bindings
-            struct param_list* param = d->type->params;
-            while (param) {
-
-                if (param->symbol) {
-                	scope_bind(stack, param->symbol);
-                }
-                param = param->next;
+        if (d->type->kind == TYPE_ARRAY) {
+            printf("Processing array declaration for: %s\n", d->name);
+            printf("Array has value?: %s\n", d->value ? "yes" : "no");
+            if (d->value) {
+                printf("Array value kind: %d\n", d->value->kind);
+                printf("Array value left: %p\n", (void*)d->value->left);
+                printf("Array value right: %p\n", (void*)d->value->right);
             }
-
-            if (d->code) {
-                scope_enter(stack, NULL);  
-                struct stmt* s = d->code;
-                while (s) {
-                    if (s->kind == STMT_DECL && s->decl) {
-                        symbol_t kind = SYMBOL_LOCAL;
-                        struct symbol* local_sym = create_symbol(kind, s->decl->type, s->decl->name);
-                        if (local_sym) {
-                        	local_sym->u.local_var_index = local_var_counter++;
-                            scope_bind(stack, local_sym);
-                        }
+            
+            if (d->value && d->value->kind == EXPR_ARRAY) {
+                printf("Found EXPR_ARRAY for: %s\n", d->name);
+                
+                // Check array size
+                if (d->value->left) {
+                    printf("Processing array size expression\n");
+                    struct type* size_type = expr_typecheck(d->value->left, stack);
+                    printf("Size expression typecheck complete\n");  // NEW
+                    if (size_type->kind != TYPE_INTEGER) {
+                        fprintf(stderr, "Error: Array size must be integer\n");
                     }
-                    s = s->next;
+                    type_delete(size_type);
+                    printf("Size type deleted\n");  // NEW
                 }
                 
-                stmt_typecheck(d->code, stack);
-                scope_exit(stack);         // Exit function body scope
-            }
-            
-            scope_exit(stack);  // Exit parameter scope
-            current_function = NULL;
-        } else {
-            if (!d->symbol) {
-                symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
-                d->symbol = create_symbol(kind, d->type, d->name);
-                if (d->symbol) {
-                    scope_bind(stack, d->symbol);
-                }
-            }
-
-            if (d->type->kind == TYPE_ARRAY) {
-            	printf("Array typecheck - value kind: %d\n", d->value ? d->value->kind : - 1);
-            	if (d->value && d->value->kind == EXPR_ARRAY) {
-            		if (d->value->left) {
-            			struct type* size_type = expr_typecheck(d->value->left, stack);
-            			if (size_type->kind != TYPE_INTEGER) {
-            				fprintf(stderr, "Error: Array size must be integer\n");
-            			}
-            			type_delete(size_type);
-            		}
-
-            		if (d->value->right) {
-            			struct expr* init_value = d->value->right;
-         
-            			while (init_value) {
-            				struct type* value_type = expr_typecheck(init_value, stack);
-            				if (!type_equals(value_type, d->type->subtype)) {
-            					fprintf(stderr, "Error: Array initialization value type mismatch\n");
-            				}
-            				type_delete(value_type);
-
-            				
-            				init_value = init_value->right;
-            			}
-            		}
-            	}
-
-            } else if (d->value) {
-                struct type* value_type = expr_typecheck(d->value, stack);
+                printf("About to check right side values\n");  // NEW
+                printf("Right value pointer: %p\n", (void*)d->value->right);  // NEW
                 
-                if (!type_equals(value_type, d->type)) {
-                    fprintf(stderr, "Error: Type mismatch in declaration of '%s'\n", d->name);
+                // Process initialization values
+                if (d->value->right) {
+                    printf("Processing array initialization values\n");
+                    struct expr* init_value = d->value->right;
+                    int count = 0;
+                    
+                    while (init_value) {
+                        printf("Processing value #%d (kind: %d)\n", 
+                               count++, init_value->kind);
+                        
+                        struct type* value_type = expr_typecheck(init_value, stack);
+                        if (!type_equals(value_type, d->type->subtype)) {
+                            fprintf(stderr, "Error: Array initialization value type mismatch\n");
+                        }
+                        type_delete(value_type);
+                        
+                        init_value = init_value->right;
+                    }
+                } else {
+                    printf("No initialization values found\n");
                 }
-                type_delete(value_type);
             }
-            
         }
-        
         d = d->next;
     }
 }
+
+// void decl_typecheck(struct decl* d, struct stack* stack) {
+//     if (!d) return;
+
+//     static int local_var_counter = 0;
+
+//     while (d) {
+//         if (d->type->kind == TYPE_FUNCTION) {
+//         	local_var_counter = 0;
+//             current_function = d;
+            
+//             scope_enter(stack, NULL);
+            
+//             // Rebuild parameter scope with bindings
+//             struct param_list* param = d->type->params;
+//             while (param) {
+
+//                 if (param->symbol) {
+//                 	scope_bind(stack, param->symbol);
+//                 }
+//                 param = param->next;
+//             }
+
+//             if (d->code) {
+//                 scope_enter(stack, NULL);  
+//                 struct stmt* s = d->code;
+//                 while (s) {
+//                     if (s->kind == STMT_DECL && s->decl) {
+//                         symbol_t kind = SYMBOL_LOCAL;
+//                         struct symbol* local_sym = create_symbol(kind, s->decl->type, s->decl->name);
+//                         if (local_sym) {
+//                         	local_sym->u.local_var_index = local_var_counter++;
+//                             scope_bind(stack, local_sym);
+//                         }
+//                     }
+//                     s = s->next;
+//                 }
+                
+//                 stmt_typecheck(d->code, stack);
+//                 scope_exit(stack);         // Exit function body scope
+//             }
+            
+//             scope_exit(stack);  // Exit parameter scope
+//             current_function = NULL;
+//         } else {
+//             if (!d->symbol) {
+//                 symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
+//                 d->symbol = create_symbol(kind, d->type, d->name);
+//                 if (d->symbol) {
+//                     scope_bind(stack, d->symbol);
+//                 }
+//             }
+
+//             if (d->type->kind == TYPE_ARRAY) {
+//             	printf("Processing array declaratio for: %s\n", d->name);
+//             	printf("Array has value? :%s\n", d->value ? "Yes" : "No");
+//             	if (d->value) {
+//             		printf("Array value kind: %d\n", d->value->kind);
+//             	}
+//             	if (d->value && d->value->kind == EXPR_ARRAY) {
+//             		printf("Found EXPR_ARRAY for: %s\n", d->name);
+//             		if (d->value->left) {
+//             			printf("Processing array size expression\n");
+//             			struct type* size_type = expr_typecheck(d->value->left, stack);
+//             			if (size_type->kind != TYPE_INTEGER) {
+//             				fprintf(stderr, "Error: Array size must be integer\n");
+//             			}
+//             			type_delete(size_type);
+//             		}
+
+//             		if (d->value->right) {
+//             			printf("Processing array initialization values\n");
+//             			struct expr* init_value = d->value->right;
+//          				int count = 0;
+
+//             			while (init_value) {
+//             				printf("Checking initialization value %d\n", count++);
+//             				struct type* value_type = expr_typecheck(init_value, stack);
+//             				if (!type_equals(value_type, d->type->subtype)) {
+//             					fprintf(stderr, "Error: Array initialization value type mismatch\n");
+//             				}
+//             				type_delete(value_type);
+
+            				
+//             				init_value = init_value->right;
+//             			}
+//             		}
+//             	} else if (d->value) {
+//             		printf("Array has value but not EXPR_ARRAY kind (kind=%d)\n", d->value->kind);
+//             	}
+
+//             } else if (d->value) {
+//                 struct type* value_type = expr_typecheck(d->value, stack);
+                
+//                 if (!type_equals(value_type, d->type)) {
+//                     fprintf(stderr, "Error: Type mismatch in declaration of '%s'\n", d->name);
+//                 }
+//                 type_delete(value_type);
+//             }
+            
+//         }
+        
+//         d = d->next;
+//     }
+// }
+
+
 
 void stmt_typecheck(struct stmt* s, struct stack* stack) {
     if (!s) return;
