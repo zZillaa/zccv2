@@ -53,80 +53,128 @@ struct AsmWriter* create_asm_writer(const char* filename) {
 
 	fprintf(writer->file, "\nsection .text\n");
 	writer->text_section = ftell(writer->file);
+	
 	fprintf(writer->file, "global _start\n\n_start:\n");
-	writer->current_pos = ftell(writer->file);
-
+	writer->start_section = ftell(writer->file);
+	writer->current_pos = writer->start_section;
 
 	return writer;
 }
-/*
-void asm_to_write_section(struct AsmWriter* writer, const char* content, int section_type) {
-	if (!writer || !content) return;
 
-	long prev_location = ftell(writer->file);
+long get_pos_from_directive(struct AsmWriter* writer, section_t directive_kind) {
+	if (!writer) return -1;
 
-	if (section_type == 1) {
-		fseek(writer->file, writer->current_pos, SEEK_SET);
-		fprintf(writer->file, "%s\n", content);
+	switch (directive_kind) {
+		case DATA_DIRECTIVE:
+			return writer->data_section;
 
-		writer->current_pos = ftell(writer->file);
-		fseek(writer->file, prev_location, SEEK_SET);
-
-	} else {
-		printf("Executing here\n");
-		fseek(writer->file, writer->data_section, SEEK_SET);
-		fprintf(writer->file, "%s\n", content);
-
-		writer->data_section = ftell(writer->file);
-		fseek(writer->file, prev_location, SEEK_SET);
+		case TEXT_DIRECTIVE:
+			return writer->current_pos;
 	}
 }
-*/
-void asm_to_write_section(struct AsmWriter* writer, const char* content, int section_type) {
-    if (!writer || !content) return;
 
-    // Save current position
-    long current_position = ftell(writer->file);
-    
-    // Read the entire file content after the insertion point
-    long insertion_point = (section_type == 1) ? writer->current_pos : writer->data_section;
-    fseek(writer->file, insertion_point, SEEK_SET);
-    
-    // Read existing content after insertion point
-    char* buffer = NULL;
-    long remaining_size = 0;
-    if (fseek(writer->file, 0, SEEK_END) == 0) {
-        long end_pos = ftell(writer->file);
-        remaining_size = end_pos - insertion_point;
-        if (remaining_size > 0) {
-            buffer = malloc(remaining_size);
-            if (buffer) {
-                fseek(writer->file, insertion_point, SEEK_SET);
-                fread(buffer, 1, remaining_size, writer->file);
-            }
-        }
-    }
-    
-    // Write new content
-    fseek(writer->file, insertion_point, SEEK_SET);
-    fprintf(writer->file, "%s\n", content);
-    
-    // Update position tracker
-    if (section_type == 1) {
-        writer->current_pos = ftell(writer->file);
-    } else {
-        writer->data_section = ftell(writer->file);
-    }
-    
-    // Write back the remaining content
-    if (buffer && remaining_size > 0) {
-        fwrite(buffer, 1, remaining_size, writer->file);
-        free(buffer);
-    }
-    
-    // Restore original position
-    fseek(writer->file, current_position, SEEK_SET);
+
+void asm_to_write_section(struct AsmWriter* writer, char* content, section_t directive_kind) {
+	if (!writer || !content) return;
+
+	long current_position = ftell(writer->file);
+	printf("Current position: %ld\n", current_position);
+	long insertion_point = get_pos_from_directive(writer, directive_kind);
+	printf("Insertion point: %ld | Directive type: %d\n", insertion_point, directive_kind);
+	char* buffer = NULL;
+	long remaining_size = 0;
+
+	if (fseek(writer->file, 0, SEEK_END) == 0) {
+		long end_pos = ftell(writer->file);
+		remaining_size = end_pos - insertion_point;
+		if (remaining_size > 0) {
+			buffer = malloc(remaining_size);
+			fseek(writer->file, insertion_point, SEEK_SET);
+			fread(buffer, 1, remaining_size, writer->file);
+		}
+	}
+
+	fseek(writer->file, insertion_point, SEEK_SET);
+	fprintf(writer->file, "%s\n", content);
+
+	if (directive_kind == DATA_DIRECTIVE) {
+		writer->data_section = ftell(writer->file);
+		writer->current_pos = writer->data_section;
+	} else {
+		writer->current_pos = ftell(writer->file);
+		
+	}
+
+	if (buffer && remaining_size > 0) {
+		fwrite(buffer, 1, remaining_size, writer->file);
+		free(buffer);
+	}
+
+	fseek(writer->file, current_position, SEEK_SET);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+// void asm_to_write_section(struct AsmWriter* writer, char* content, section_t directive_kind) {
+//     if (!writer || !content) return;
+
+//     // Save current position
+//     long current_position = ftell(writer->file);
+//     printf("Current position: %ld\n", current_position);
+    
+//     // Read the entire file content after the insertion point
+//     long insertion_point = get_pos_from_directive(writer, directive_kind);
+//     printf("Insertion point: %ld\n", insertion_point);
+//     fseek(writer->file, insertion_point, SEEK_SET);
+    
+//     // Read existing content after insertion point
+//     char* buffer = NULL;
+//     long remaining_size = 0;
+//     if (fseek(writer->file, 0, SEEK_END) == 0) {
+//         long end_pos = ftell(writer->file);
+//         remaining_size = end_pos - insertion_point;
+//         if (remaining_size > 0) {
+//             buffer = malloc(remaining_size);
+//             if (buffer) {
+//                 fseek(writer->file, insertion_point, SEEK_SET);
+//                 fread(buffer, 1, remaining_size, writer->file);
+//             }
+//         }
+//     }
+    
+//     // Write new content
+//     fseek(writer->file, insertion_point, SEEK_SET);
+//     fprintf(writer->file, "%s\n", content);
+    
+//     // Update position tracker
+//     if (directive_kind == DATA_DIRECTIVE) {
+//         writer->data_section = ftell(writer->file);
+//     } else if (directive_kind == TEXT_DIRECTIVE) {
+//         writer->text_section = ftell(writer->file);
+//     } else {
+//     	writer->current_pos = ftell(writer->file);
+//     }
+    
+//     // Write back the remaining content
+//     if (buffer && remaining_size > 0) {
+//         fwrite(buffer, 1, remaining_size, writer->file);
+//         free(buffer);
+//     }
+    
+//     // Restore original position
+//     fseek(writer->file, current_position, SEEK_SET);
+//     long back_to_current = ftell(writer->file);
+//     printf("Back to current: %ld\n", back_to_current);
+// }
 
 int scratch_alloc(struct RegisterTable* sregs) {
 	if (!sregs) return -1;
@@ -165,7 +213,7 @@ const char* label_name(int label) {
 	return buffer;
 }
 
-const char* symbol_codegen(struct symbol* sym) {
+char* symbol_codegen(struct symbol* sym) {
 	if (!sym) {
 		fprintf(stderr, "Error: symbol is NULL\n");
 		return NULL;
@@ -198,7 +246,7 @@ const char* symbol_codegen(struct symbol* sym) {
 
 byte_size_t get_byte_size(expr_t kind) {
 	switch (kind) {
-		case EXPR_INTEGER:
+		case EXPR_ARRAY_VAL:
 			return DQ;
 
 		case EXPR_STRING:
@@ -285,17 +333,17 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			expr_codegen(sregs, writer, e->right);
 
 			snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
-			asm_to_write_section(writer, buffer, 1);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			snprintf(buffer, sizeof(buffer), "\tcqo");
-			asm_to_write_section(writer, buffer, 1);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			snprintf(buffer, sizeof(buffer), "\tidiv %s", scratch_name(sregs, e->right->reg));
-			asm_to_write_section(writer, buffer, 1);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			e->reg = e->left->reg;
 			snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, e->reg));
-			asm_to_write_section(writer, buffer, 1);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			scratch_free(sregs, e->left->reg);
 			scratch_free(sregs, e->right->reg);
@@ -336,30 +384,30 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		    if (strcmp(scratch_name(sregs, e->left->reg), "rax") != 0) {
 		        save_reg = scratch_alloc(sregs);
 		        snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, save_reg));
-		        asm_to_write_section(writer, buffer, 1);
+		        asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		    }
 		    
 		    // Move left operand to rax if it's not already there
 		    if (strcmp(scratch_name(sregs, e->left->reg), "rax") != 0) {
 		        snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
-		        asm_to_write_section(writer, buffer, 1);
+		        asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		    }
 		    
 		    // Perform multiplication
 		    snprintf(buffer, sizeof(buffer), "\tmul %s", scratch_name(sregs, e->right->reg));
-		    asm_to_write_section(writer, buffer, 1);
+		    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		    
 		    // Move result to a new register if needed
 		    e->reg = scratch_alloc(sregs);
 		    if (strcmp(scratch_name(sregs, e->reg), "rax") != 0) {
 		        snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, e->reg));
-		        asm_to_write_section(writer, buffer, 1);
+		        asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		    }
 		    
 		    // Restore original rax value if we saved it
 		    if (save_reg != -1) {
 		        snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, save_reg));
-		        asm_to_write_section(writer, buffer, 1);
+		        asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		        scratch_free(sregs, save_reg);
 		    }
 		    
@@ -377,7 +425,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				scratch_name(sregs, e->left->reg), 
 				scratch_name(sregs, e->right->reg));
 
-			asm_to_write_section(writer, buffer, 1);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		
 			e->reg = e->left->reg;
 			scratch_free(sregs, e->right->reg);
@@ -390,7 +438,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		        symbol_codegen(e->left->symbol),
 		        scratch_name(sregs, e->right->reg));
 
-		    asm_to_write_section(writer, buffer, 1);
+		    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		    e->reg = e->right->reg;
 		    scratch_free(sregs, e->right->reg);
 		    break;
@@ -404,7 +452,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				scratch_name(sregs, e->reg),
 				symbol_codegen(e->symbol));
 
-			asm_to_write_section(writer, buffer, 1);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 			break;
 
 		case EXPR_INTEGER:
@@ -413,7 +461,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				scratch_name(sregs, e->reg),
 				e->integer_value);
 
-			asm_to_write_section(writer, buffer, 1);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 			break;
 
 		case EXPR_ARRAY_VAL:
@@ -422,8 +470,13 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_ARRAY:
 			int label_num = label_create();
-			const char* id = label_name(label_num);
-			int array_size = e->left->integer_value;
+			// Do not need to generate labels for arrays, just use their names.
+			// const char* id = label_name(label_num);
+			const char* name = strdup(e->name);
+			int array_size;
+			if (e->left) {
+				array_size = e->left->integer_value;
+			}
 			expr_codegen(sregs, writer, e->left);
 			
 
@@ -435,16 +488,16 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			if (!e->right) {
 				printf("No initialization values\n");
 				snprintf(buffer, sizeof(buffer), "\t%s: %s %d",
-					id,
+					name,
 					request_to_string(byte_t), 
 					array_size);
 
-				asm_to_write_section(writer, buffer, 0);
+				asm_to_write_section(writer, buffer, DATA_DIRECTIVE);
 
 			} else {
 				char temp_buffer[1024] = {0};
 				snprintf(temp_buffer, sizeof(temp_buffer), "\t%s %s",
-					id,
+					name,
 					bytes_to_string(byte_t));	
 
 				struct expr* current = e->right;
@@ -452,14 +505,13 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				while (current) {
 					char value_buffer[32];
 					snprintf(value_buffer, sizeof(value_buffer),
-						current->right ? "%d, " : "%d",
+						current->right ? " %d," : " %d",
 						current->integer_value);
 
 					strcat(temp_buffer, value_buffer);
-					printf("Array value: %d\n", current->integer_value);
 					current = current->right;
 				}
-				asm_to_write_section(writer, temp_buffer, 0);
+				asm_to_write_section(writer, temp_buffer, DATA_DIRECTIVE);
 			}
 
 			scratch_free(sregs, e->left->reg); 
@@ -480,7 +532,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case STMT_EXPR:
 			expr_codegen(sregs, writer, s->expr);
-			scratch_free(sregs, s->expr->reg);
+			// scratch_free(sregs, s->expr->reg);
 			break;
 		// case STMT_RETURN:
 		// 	expr_codegen(sregs, writer, s->expr);
@@ -502,7 +554,7 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		if (d->type->kind == TYPE_FUNCTION) {
 			
 			snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %d\n", 32);
-			asm_to_write_section(writer, buffer, 1);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			stmt_codegen(sregs, writer, d->code);
 
@@ -513,23 +565,16 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
             if(z_reg != -1) {
                 snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, z_reg));
-                asm_to_write_section(writer, buffer, 1);
+                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
             }
 
             snprintf(buffer, sizeof(buffer), "\n\tmov rsp, rbp\n\tpop rbp\n\tret\n\n\tmov rax, 60\n\txor rdi, rdi\n\tsyscall");
-            asm_to_write_section(writer, buffer, 1);
+            asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-		} else if (d->value) {
-			expr_codegen(sregs, writer, d->value);
-
-			snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-				symbol_codegen(d->symbol),
-				scratch_name(sregs, d->value->reg));
-
-			asm_to_write_section(writer, buffer, 1);
-
-			scratch_free(sregs, d->value->reg);
-
+		} else if (d->type->kind == TYPE_ARRAY) {
+			if (d->value && d->value->kind == EXPR_ARRAY) {
+				expr_codegen(sregs, writer, d->value);
+			}
 		}
 
 		d = d->next;
