@@ -27,34 +27,34 @@ _start:
 add:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 2
+	sub rsp, 15
 
 function:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 4
+	sub rsp, 52
 
 function1:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 5
+	sub rsp, 69
 
 function3:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 3
+	sub rsp, 30
 
 function4:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 3
+	sub rsp, 30
 
 function5:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 3
+	sub rsp, 30
 
 function6:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 4
+	sub rsp, 50

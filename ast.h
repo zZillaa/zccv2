@@ -171,6 +171,7 @@ void debug_print_scope_stack(struct stack* stack, const char* location);
 expr_t get_expr_type(Token* token);
 stmt_t get_stmt_type(Token* token);
 type_t get_type(Token* token);
+size_t get_num_bytes(struct decl* d);
 
 struct expr* expr_create_integer_literal( int i );
 struct expr* expr_create_boolean_literal( int b );

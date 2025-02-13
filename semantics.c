@@ -87,7 +87,6 @@ void scope_exit(struct stack* stack) {
 	stack->top--;
 }
 
-
 void insert_symbol(struct symbol_table* table, struct symbol* symbol) {
 	if (!table || !symbol) return;
 
@@ -412,9 +411,32 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 }
 
 
+size_t get_num_bytes(struct decl* d) {
+	if (!d) return -1;
+
+	if (d->value && d->value->type) {
+		type_t kind = d->value->type->kind;
+		switch (kind) {
+			case TYPE_INTEGER:
+			return sizeof(int);
+
+			case TYPE_CHARACTER:
+			case TYPE_BOOLEAN:
+				return sizeof(char);
+
+			case TYPE_ARRAY:
+				int array_size = d->value->left->integer_value ? d->value->left->integer_value : -1; 
+				return sizeof(t->subtype) * array_size;
+				
+		}
+	}
+
+}
+
 void decl_resolve(struct decl* d, struct stack* stack) {
 	if (!d || !stack) return;
 	static int local_var_counter = 0;
+	static size_t allocate_num_bytes = 0;
 
 	while (d) {
 		if (!d->name || !d->type) {
@@ -431,7 +453,9 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 			d = d->next;
 			continue;
 		}
-
+		// Implement static alloc num bytes?
+		allocate_num_bytes += get_num_bytes(d->type);
+		
 		d->symbol = create_symbol(kind, d->type, d->name);
 		if (!d->symbol) {
 			fprintf(stderr, "Error: Failed to create symbol for '%s'\n", d->name);
@@ -440,7 +464,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 		}
 
 		if (kind == SYMBOL_LOCAL) {
-			d->symbol->s.local_var_index = local_var_counter++;
+			d->symbol->s.local_var_index = allocate_num_bytes + local_var_counter++;
 			printf("Resolution - Symbol address: %p, name: %s, index: %d\n",
 				(void*)d->symbol, d->name, d->symbol->s.local_var_index);
 			fprintf(stderr, "Created local variable %s with index %d\n", d->name, d->symbol->s.local_var_index);
@@ -457,6 +481,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 			current_function = d;
 			int original_scope = stack->top;
 			local_var_counter = 0;
+			allocate_num_bytes = 0;
 
 			scope_enter(stack, NULL);
 			param_list_resolve(d->type->params, stack);
@@ -803,6 +828,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
 void decl_typecheck(struct decl* d, struct stack* stack) {
     if (!d) return;
 
+    static size_t allocate_num_bytes = 0;
     static int local_var_counter = 0;
     static int params_counter = 0;
 
@@ -810,6 +836,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
         if (d->type->kind == TYPE_FUNCTION) {
         	local_var_counter = 0;
             params_counter = 0;
+            allocate_num_bytes = 0;
             current_function = d;
             
             scope_enter(stack, NULL);
@@ -817,7 +844,8 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
             // Rebuild parameter scope with bindings
             struct param_list* param = d->type->params;
             while (param) {
-            	d->symbol->s.param_index = ++params_counter;
+            	allocate_num_bytes += get_num_bytes(d);
+            	d->symbol->s.param_index += ++params_counter + allocate_num_bytes;
                 if (param->symbol) {
                 	scope_bind(stack, param->symbol);
                 }
@@ -833,7 +861,8 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                         struct symbol* local_sym = create_symbol(kind, s->decl->type, s->decl->name);
                         if (local_sym) {
                         	d->code->symbol = local_sym;
-                        	d->symbol->s.local_var_index = ++local_var_counter;
+                        	allocate_num_bytes += get_num_bytes(s->decl);
+                        	d->symbol->s.local_var_index += ++local_var_counter + allocate_num_bytes;
                             scope_bind(stack, local_sym);
                         }
                     }
