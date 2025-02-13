@@ -541,8 +541,8 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     		if (!d->symbol) printf("Sadly...\n");
     		if (!d->code->symbol) printf("Unfortunately\n");
     		int num_statements = d->code->symbol ? d->code->symbol->s.local_var_index : 0;
-    		printf("What's the the number of parameters? Number: %d\n", d->symbol->s.param_index);
-    		int num_bytes = (d->symbol->s.param_index + num_statements); 
+    		printf("What's the total num of data types? Number: %d\n", d->symbol->s.param_index + d->symbol->s.local_var_index);
+    		int num_bytes = d->symbol->s.param_index + d->symbol->s.local_var_index;  
     		snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %d", num_bytes);
     		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 

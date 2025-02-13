@@ -205,7 +205,7 @@ void scope_bind(struct stack* stack, struct symbol* symbol) {
 void param_list_resolve(struct param_list* params, struct stack* stack) {
 	if (!params) return;
 
-	int param_index = 0;
+	static int param_index = 0;
 
 	while (params) {
 		symbol_t kind = SYMBOL_PARAM;
@@ -804,10 +804,12 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
     if (!d) return;
 
     static int local_var_counter = 0;
+    static int params_counter = 0;
 
     while (d) {
         if (d->type->kind == TYPE_FUNCTION) {
         	local_var_counter = 0;
+            params_counter = 0;
             current_function = d;
             
             scope_enter(stack, NULL);
@@ -815,7 +817,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
             // Rebuild parameter scope with bindings
             struct param_list* param = d->type->params;
             while (param) {
-
+            	d->symbol->s.param_index = ++params_counter;
                 if (param->symbol) {
                 	scope_bind(stack, param->symbol);
                 }
@@ -830,7 +832,8 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                         symbol_t kind = SYMBOL_LOCAL;
                         struct symbol* local_sym = create_symbol(kind, s->decl->type, s->decl->name);
                         if (local_sym) {
-                        	local_sym->s.local_var_index = local_var_counter++;
+                        	d->code->symbol = local_sym;
+                        	d->symbol->s.local_var_index = ++local_var_counter;
                             scope_bind(stack, local_sym);
                         }
                     }
