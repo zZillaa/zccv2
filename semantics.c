@@ -210,7 +210,7 @@ void param_list_resolve(struct param_list* params, struct stack* stack) {
 	while (params) {
 		symbol_t kind = SYMBOL_PARAM;
 		params->symbol = create_symbol(kind, params->type, params->name);
-		params->symbol->u.param_index = param_index++;
+		params->symbol->s.param_index = param_index++;
 
 		if (params->symbol) {
 			scope_bind(stack, params->symbol);
@@ -440,10 +440,10 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 		}
 
 		if (kind == SYMBOL_LOCAL) {
-			d->symbol->u.local_var_index = local_var_counter++;
+			d->symbol->s.local_var_index = local_var_counter++;
 			printf("Resolution - Symbol address: %p, name: %s, index: %d\n",
-				(void*)d->symbol, d->name, d->symbol->u.local_var_index);
-			fprintf(stderr, "Created local variable %s with index %d\n", d->name, d->symbol->u.local_var_index);
+				(void*)d->symbol, d->name, d->symbol->s.local_var_index);
+			fprintf(stderr, "Created local variable %s with index %d\n", d->name, d->symbol->s.local_var_index);
 		}
 
 		scope_bind(stack, d->symbol);
@@ -830,7 +830,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                         symbol_t kind = SYMBOL_LOCAL;
                         struct symbol* local_sym = create_symbol(kind, s->decl->type, s->decl->name);
                         if (local_sym) {
-                        	local_sym->u.local_var_index = local_var_counter++;
+                        	local_sym->s.local_var_index = local_var_counter++;
                             scope_bind(stack, local_sym);
                         }
                     }

@@ -668,8 +668,6 @@ struct decl* parse_function(Token* tokens, int* tokenIdx, char* name, struct typ
         return NULL;
     }
 
-    
-
     struct param_list* params = parse_parameters(tokens, tokenIdx);
     struct type* func_type = type_create(TYPE_FUNCTION, return_type, params);
 

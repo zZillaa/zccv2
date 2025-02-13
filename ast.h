@@ -149,10 +149,11 @@ struct symbol {
     struct type* type;
     char* name;
     struct symbol* next;
-    union {
+
+    struct {
         int param_index;
         int local_var_index;
-    } u;
+    } s;
 };
 
 struct symbol_table {

@@ -81,7 +81,6 @@ char* symbol_codegen(struct symbol* sym);
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);
 void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s);
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d);
-
 void free_register(struct Register* r);
 void free_register_table(struct RegisterTable* sregs);
 #endif
