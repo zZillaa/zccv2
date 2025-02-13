@@ -762,7 +762,9 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
             }
         }
 
-        return decl_create(name, array_type, array_expr, NULL, NULL);
+        struct decl* d = decl_create(name, array_type, array_expr, NULL, NULL);
+
+        return d;
     }
 
     type_delete(array_type);
