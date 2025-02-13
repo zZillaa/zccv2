@@ -31,7 +31,8 @@ struct AsmWriter {
 	long data_section;
 	long text_section;
 	long start_section;
-	long current_pos;
+	long current_text_pos;
+	long current_data_pos;
 };
 
 typedef enum {

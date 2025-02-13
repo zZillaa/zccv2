@@ -54,9 +54,10 @@ struct AsmWriter* create_asm_writer(const char* filename) {
 	fprintf(writer->file, "\nsection .text\n");
 	writer->text_section = ftell(writer->file);
 	
+	writer->current_text_pos = writer->text_section;
+	writer->current_data_pos = writer->data_section;
+
 	fprintf(writer->file, "global _start\n\n_start:\n");
-	writer->start_section = ftell(writer->file);
-	writer->current_pos = writer->start_section;
 
 	return writer;
 }
@@ -66,21 +67,22 @@ long get_pos_from_directive(struct AsmWriter* writer, section_t directive_kind) 
 
 	switch (directive_kind) {
 		case DATA_DIRECTIVE:
-			return writer->data_section;
+			return writer->current_data_pos;
 
 		case TEXT_DIRECTIVE:
-			return writer->current_pos;
+			return writer->current_text_pos;
+		
+		default:
+			return -1;
 	}
 }
-
 
 void asm_to_write_section(struct AsmWriter* writer, char* content, section_t directive_kind) {
 	if (!writer || !content) return;
 
 	long current_position = ftell(writer->file);
-	printf("Current position: %ld\n", current_position);
 	long insertion_point = get_pos_from_directive(writer, directive_kind);
-	printf("Insertion point: %ld | Directive type: %d\n", insertion_point, directive_kind);
+	printf("Insertion point: %ld\n", insertion_point);
 	char* buffer = NULL;
 	long remaining_size = 0;
 
@@ -98,11 +100,9 @@ void asm_to_write_section(struct AsmWriter* writer, char* content, section_t dir
 	fprintf(writer->file, "%s\n", content);
 
 	if (directive_kind == DATA_DIRECTIVE) {
-		writer->data_section = ftell(writer->file);
-		writer->current_pos = writer->data_section;
+		writer->current_data_pos = ftell(writer->file);
 	} else {
-		writer->current_pos = ftell(writer->file);
-		
+		writer->current_text_pos = ftell(writer->file);
 	}
 
 	if (buffer && remaining_size > 0) {
@@ -112,69 +112,6 @@ void asm_to_write_section(struct AsmWriter* writer, char* content, section_t dir
 
 	fseek(writer->file, current_position, SEEK_SET);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-// void asm_to_write_section(struct AsmWriter* writer, char* content, section_t directive_kind) {
-//     if (!writer || !content) return;
-
-//     // Save current position
-//     long current_position = ftell(writer->file);
-//     printf("Current position: %ld\n", current_position);
-    
-//     // Read the entire file content after the insertion point
-//     long insertion_point = get_pos_from_directive(writer, directive_kind);
-//     printf("Insertion point: %ld\n", insertion_point);
-//     fseek(writer->file, insertion_point, SEEK_SET);
-    
-//     // Read existing content after insertion point
-//     char* buffer = NULL;
-//     long remaining_size = 0;
-//     if (fseek(writer->file, 0, SEEK_END) == 0) {
-//         long end_pos = ftell(writer->file);
-//         remaining_size = end_pos - insertion_point;
-//         if (remaining_size > 0) {
-//             buffer = malloc(remaining_size);
-//             if (buffer) {
-//                 fseek(writer->file, insertion_point, SEEK_SET);
-//                 fread(buffer, 1, remaining_size, writer->file);
-//             }
-//         }
-//     }
-    
-//     // Write new content
-//     fseek(writer->file, insertion_point, SEEK_SET);
-//     fprintf(writer->file, "%s\n", content);
-    
-//     // Update position tracker
-//     if (directive_kind == DATA_DIRECTIVE) {
-//         writer->data_section = ftell(writer->file);
-//     } else if (directive_kind == TEXT_DIRECTIVE) {
-//         writer->text_section = ftell(writer->file);
-//     } else {
-//     	writer->current_pos = ftell(writer->file);
-//     }
-    
-//     // Write back the remaining content
-//     if (buffer && remaining_size > 0) {
-//         fwrite(buffer, 1, remaining_size, writer->file);
-//         free(buffer);
-//     }
-    
-//     // Restore original position
-//     fseek(writer->file, current_position, SEEK_SET);
-//     long back_to_current = ftell(writer->file);
-//     printf("Back to current: %ld\n", back_to_current);
-// }
 
 int scratch_alloc(struct RegisterTable* sregs) {
 	if (!sregs) return -1;
@@ -224,8 +161,6 @@ char* symbol_codegen(struct symbol* sym) {
 	switch (sym->kind) {
 		case SYMBOL_LOCAL:	
 			if (sym->type->kind == TYPE_INTEGER) {
-				// printf("Debug - Variable: %s, kind: %d, Local index: %d\n",
-					// sym->name, sym->kind, sym->u.local_var_index);
 				snprintf(buffer, sizeof(buffer), "rbp - %d", 8 * (sym->u.local_var_index + 1));
 
 			}
@@ -444,9 +379,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		    break;
 
 		case EXPR_NAME:
+
 			e->reg = scratch_alloc(sregs);
-			// printf("Codegen - Symbol address: %p, name: %s, index: %d\n",
-			// 	(void*)e->symbol, e->symbol->name, e->symbol->u.local_var_index);
 
 			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
 				scratch_name(sregs, e->reg),
@@ -470,10 +404,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_ARRAY:
 			int label_num = label_create();
-			// Do not need to generate labels for arrays, just use their names.
-			// const char* id = label_name(label_num);
 			const char* name = strdup(e->name);
-			int array_size;
+			int array_size = 0;
 			if (e->left) {
 				array_size = e->left->integer_value;
 			}
@@ -545,43 +477,106 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 	stmt_codegen(sregs, writer, s->next);
 }
 
-void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d) {
-	if (!sregs || !d) return;
+// void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d) {
+// 	if (!sregs || !d) return;
 
-	char buffer[256];
+// 	char buffer[256];
 	
-	while (d) {
-		if (d->type->kind == TYPE_FUNCTION) {
+// 	while (d) {
+// 		if (d->type->kind == TYPE_FUNCTION) {
 			
-			snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %d\n", 32);
-			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+// 			snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %d\n", 32);
+// 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-			stmt_codegen(sregs, writer, d->code);
+// 			stmt_codegen(sregs, writer, d->code);
 
-			int z_reg = -1;
-            if (d->code->kind == STMT_EXPR && d->code->expr->kind == EXPR_ASSIGNMENT && d->code->expr->left->symbol != NULL && strcmp(d->code->expr->left->symbol->name, "z") == 0) {
-                z_reg = d->code->expr->reg;
-            }
+// 			int z_reg = -1;
+//             if (d->code->kind == STMT_EXPR && d->code->expr->kind == EXPR_ASSIGNMENT && d->code->expr->left->symbol != NULL && strcmp(d->code->expr->left->symbol->name, "z") == 0) {
+//                 z_reg = d->code->expr->reg;
+//             }
 
-            if(z_reg != -1) {
-                snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, z_reg));
-                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-            }
+//             if(z_reg != -1) {
+//                 snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, z_reg));
+//                 asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//             }
 
-            snprintf(buffer, sizeof(buffer), "\n\tmov rsp, rbp\n\tpop rbp\n\tret\n\n\tmov rax, 60\n\txor rdi, rdi\n\tsyscall");
-            asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//             snprintf(buffer, sizeof(buffer), "\n\tmov rsp, rbp\n\tpop rbp\n\tret\n\n\tmov rax, 60\n\txor rdi, rdi\n\tsyscall");
+//             asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-		} else if (d->type->kind == TYPE_ARRAY) {
-			if (d->value && d->value->kind == EXPR_ARRAY) {
-				expr_codegen(sregs, writer, d->value);
-			}
-		}
+// 		} else if (d->type->kind == TYPE_ARRAY) {
+// 			if (d->value && d->value->kind == EXPR_ARRAY) {
+// 				expr_codegen(sregs, writer, d->value);
+// 			}
+// 		}
 
-		d = d->next;
-	}
+// 		d = d->next;
+// 	}
 
+// }
+
+void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d) {
+    if (!sregs || !d) return;
+    char buffer[256];
+    struct decl* original = d;
+
+    // First pass: Write all global variables and arrays in data section
+
+    while (d) {
+    	if (d->type->kind == TYPE_ARRAY) {
+    		if (d->value && d->value->kind == EXPR_ARRAY) {
+    			expr_codegen(sregs, writer, d->value);
+    		}
+    	}
+    	d = d->next;
+    }
+
+    // Second pass: Write function declarations after .text section
+    d = original;
+    // fseek(writer->file, writer->current_text_pos, SEEK_SET);
+    
+    while (d) {
+        if (d->type->kind == TYPE_FUNCTION) {
+        	snprintf(buffer, sizeof(buffer), "global %s\n", d->name);
+            // fprintf(writer->file, "global %s\n", d->name);
+        	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        }
+        d = d->next;
+    }
+    
+    writer->current_text_pos = ftell(writer->file);
+
+    // Third pass: Write function bodies in text section
+    // d = original;
+    // while (d) {
+    //     if (d->type->kind == TYPE_FUNCTION) {
+    //         // Function declarations should go in text section
+    //         snprintf(buffer, sizeof(buffer), "%s:", d->name);
+    //         asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+            
+    //         snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %d", 32);
+    //         asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+            
+    //         stmt_codegen(sregs, writer, d->code);
+            
+    //         // Handle return value
+    //         if (d->code) {
+    //             struct stmt* last_stmt = d->code;
+    //             while (last_stmt->next) last_stmt = last_stmt->next;
+                
+    //             if (last_stmt->kind == STMT_EXPR && 
+    //                 last_stmt->expr->kind == EXPR_ASSIGNMENT) {
+    //                 int reg = last_stmt->expr->reg;
+    //                 snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, reg));
+    //                 asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    //             }
+    //         }
+            
+    //         snprintf(buffer, sizeof(buffer), "\tmov rsp, rbp\n\tpop rbp\n\tret\n");
+    //         asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    //     }
+    //     d = d->next;
+    // }
 }
-
 
 void free_register(struct Register* reg) {
 	if (!reg) return;
