@@ -12,84 +12,63 @@ section .data
 	z dq 20
 
 section .text
-global add
 global function
-global function1
-global function3
-global function4
-global function5
-global function6
-global function7
-global multiply_two_numbers
+global add_more_numbers
+global function2
 global _start
 
 _start:
 
 
-add:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 16
-	mov rax, [rbp - 16]
-	mov rbx, [rbp - 16]
-	add rax, rbx
-	mov rax, rax
-
 function:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 32
-	mov rax, [rbp - 24]
-	mov rax, rax
+	sub rsp, 16
 
-function1:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 32
-	mov rax, [rbp - 24]
-	mov rax, rax
+	mov rax, 5
+	mov [rbp - 8], rax
+	mov rbx, 20
+	mov [rbp - 16], rbx
+	mov [rbp - 8], r8
+	mov [rbp - 16], r9
+	add r8, r9
+	mov [rbp - 24], r9
+	mov rax, r9
 
-function3:
+	leave
+	ret
+
+add_more_numbers:
 	push rbp
 	mov rbp, rsp
 	sub rsp, 16
-	mov rax, [rbp - 24]
-	mov rax, rax
 
-function4:
+	mov r9, 3
+	mov [rbp - 8], r9
+	mov r10, 2
+	mov [rbp - 16], r10
+	mov [rbp - 16], r11
+	mov [rbp - 8], r12
+	add r11, r12
+	mov [rbp - 24], r12
+	mov rax, r12
+
+	leave
+	ret
+
+function2:
 	push rbp
 	mov rbp, rsp
 	sub rsp, 16
-	mov rax, [rbp - 24]
-	mov rax, rax
 
-function5:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 16
-	mov rax, [rbp - 24]
-	mov rax, rax
+	mov r12, 3
+	mov [rbp - 8], r12
+	mov r13, 10
+	mov [rbp - 16], r13
+	mov r14, 20
+	mov [rbp - 24], r14
+	mov [rbp - 24], r15
+	mov rax, r15
 
-function6:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 16
-	mov rax, [rbp - 32]
-	mov rax, rax
-
-function7:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 64
-	mov rax, [rbp - 8]
-	mov rax, rax
-
-multiply_two_numbers:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 16
-	mov rax, [rbp - 16]
-	mov rbx, [rbp - 16]
-	mul rbx
-	mov r8, rax
-	mov rax, r8
+	leave
+	ret

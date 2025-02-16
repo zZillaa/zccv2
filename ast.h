@@ -8,7 +8,6 @@
 #include <string.h>
 #include <assert.h>
 
-
 struct decl {
     char* name;
     struct type* type;
@@ -168,8 +167,6 @@ struct stack {
     struct symbol_table** symbol_tables;
 };
 
-void debug_print_scope_stack(struct stack* stack, const char* location);
-
 expr_t get_expr_type(Token* token);
 stmt_t get_stmt_type(Token* token);
 type_t get_type(Token* token);
@@ -232,6 +229,7 @@ struct symbol_table* copy_symbol_table(struct symbol_table* original);
 void free_stack(struct stack* stack);
 void free_symbol(struct symbol* symbol);
 
+void debug_print_scope_stack(struct stack* stack, const char* location);
 struct stack* create_stack();
 struct symbol* create_symbol(symbol_t kind, struct type* type, char* name);
 struct symbol* scope_lookup(struct stack* stack, char* name, int* found_scope);

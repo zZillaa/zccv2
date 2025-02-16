@@ -68,6 +68,8 @@ typedef union TokenValue{
 typedef struct Token {
     TokenType type; 
     TokenValue value;
+    int line;
+    int column;
 } Token;
 
 typedef enum {
@@ -89,11 +91,31 @@ typedef struct {
     char* name;
 } Keyword;
 
+typedef enum {
+    LEXER_ERROR_INVALID_CHARACTER,
+    LEXER_ERROR_UNTERMINATED_STRING,
+    LEXER_ERROR_UNTERMINATED_COMMENT,
+    LEXER_ERROR_UNTERMINATED_LITERAL,
+    LEXER_ERROR_UNTERMINATED_ESCAPE_SEQUENCE,
+    LEXER_ERROR_UNEXPECTED_EOF,
+    LEXER_ERROR_UNRECOGNIZED_TOKEN
+} lexer_error_t;
+
+typedef struct {
+    lexer_error_t type; 
+    char message[256];  
+    int line;
+    int column;
+} LexerError;
+
+void print_lexer_error(const LexerError* error);
+
 keyword_t get_keyword_type(char* str);
 TokenType keyword_to_token(Keyword* word);
 Token* lexer(char* contents);
 void print_tokens(Token* tokens);
 void free_token(Token* token);
 void free_tokens(Token* tokens);
+
 
 #endif

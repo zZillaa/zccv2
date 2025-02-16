@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define MAX_SCRATCH_REGISTERS 6
+#define MAX_SCRATCH_REGISTERS 10
 
 static int label_counter = 0;
 
@@ -80,7 +80,7 @@ const char* label_name( int label );
 char* symbol_codegen(struct symbol* sym);
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);
 void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s);
-void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d);
+void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d, bool is_local);
 void free_register(struct Register* r);
 void free_register_table(struct RegisterTable* sregs);
 #endif

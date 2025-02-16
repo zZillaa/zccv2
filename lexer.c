@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include "lexer.h"
 #define NUM_KEYWORDS 9
-// #include "parser.h"
 
 char* keywords[] = {"int", "char", "boolean", "if", "else", "for", "while", "return", "void", "struct"};
 keyword_t get_keyword_type(char* str) {
@@ -53,6 +52,62 @@ TokenType keyword_to_token(Keyword* word) {
 }
 
 Token* lexer(char* contents) {
+    Token* tokens = malloc(sizeof(Token) * max_tokens);
+    if (!tokens) return NULL;
+
+    char* start = contents;
+    char* end = contents;
+
+    int line = 1;
+    int column = 1;
+    int tokenIdx = 0;
+
+
+    while (*end != '\0') {
+        while (isspace(*end)) {
+            if (*end == '\n') {
+                line++;
+                column = 1;
+            } else {
+                column++;
+            }
+            end++;
+        }
+
+        start = end;
+
+        if (isalpha(*end)) {
+            while (isalnum(*end) || *end == '_') end++;
+        } else if (isdigit(*end) || (*end == '-' && isdigit(*(end + 1))) {
+            if (*end == '-') end++;
+            while (isdigit(*end)) end++;
+        } else if (ispunct(*end)) {
+            end++:
+            if (*end == '=' || (*end == '+' && *(end - 1) == '+') || (*end == '-' && *(end - 1) == '-')) end++;
+        } else  {
+            end++;
+        }
+
+        int length = end - start;
+        char* buffer = strndup(start, length);
+
+        tokens[tokenIdx].type = get_keyword_type(buffer);
+        tokens[tokenIdx].line = line;
+        tokens[tokenIdx].column = column;
+        tokenIdx++;
+
+        column += length;
+    }
+
+    tokens[tokenIdx].type = TOKEN_EOF;
+    tokens[tokenIdx].line = line;
+    tokens[tokenIdx].column = column;
+
+    return tokens;
+}
+
+Token* lexer(char* contents) {
+    LexerError* error;
     unsigned contents_length = strlen(contents);
     unsigned max_tokens = contents_length + 1;
     Token* tokens = (Token*)malloc(sizeof(Token) * max_tokens);
@@ -61,6 +116,8 @@ Token* lexer(char* contents) {
         exit(EXIT_FAILURE);
     }
 
+    int line = 0;
+    int column = 0;
     char buffer[MAX_LENGTH + 1];
     int tokenidx = 0;
     int i = 0;
@@ -145,7 +202,6 @@ Token* lexer(char* contents) {
                     case '+': type = TOKEN_INCREMENT; break;
                     default: type = TOKEN_UNKNOWN; is_compound_op = false; break;
                 }
-
             } else if (next_char == '-') {
                 is_compound_op = true;
                 op_str[0] = c;
@@ -233,6 +289,44 @@ Token* lexer(char* contents) {
 
     return tokens;
 
+}
+
+void print_lexer_error(const LexerError* error) {
+    const char* errorTypeStr;
+
+    switch (error->type) {
+        case LEXER_ERROR_INVALID_CHARACTER:
+            errorTypeStr = "Invalid character";
+            break;
+
+        case LEXER_ERROR_UNTERMINATED_STRING:
+            errorTypeStr = "Unterminated String literal\n";
+            break;
+
+        case LEXER_ERROR_UNTERMINATED_COMMENT:
+            errorTypeStr = "Unterminated Comment\n";
+            break;
+
+        case LEXER_ERROR_UNTERMINATED_LITERAL:
+            errorTypeStr = "Invalid Number Literal\n";
+            break;
+
+        case LEXER_ERROR_UNTERMINATED_ESCAPE_SEQUENCE:
+            errorTypeStr = "Invalid Escape Sequence";
+            break;
+        case LEXER_ERROR_UNEXPECTED_EOF:
+            errorTypeStr = "Unexpected End of Input";
+            break;
+        case LEXER_ERROR_UNRECOGNIZED_TOKEN:
+            errorTypeStr = "Unrecognized Token";
+            break;
+        default:
+            errorTypeStr = "Unknown Error";
+            break;
+    }
+
+    printf("Lexer Error (%s) at line %d, column %d: %s\n",
+        errorTypeStr, error->line, error->column, error->message);
 }
 
 // void print_tokens(Token* tokens) {

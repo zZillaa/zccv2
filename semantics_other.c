@@ -277,11 +277,14 @@ size_t get_num_bytes(struct decl* d, struct type* t) {
 void param_list_resolve(struct param_list* params, struct stack* stack) {
 	if (!params || !stack) return;
 
+	int param_index = 0;
+
 	while (params) {
 		symbol_t kind = SYMBOL_PARAM;
 		params->symbol = create_symbol(kind, params->type, params->name);
 		if (params->symbol){
 			scope_bind(stack, params->symbol);
+			params->symbol->s.param_index = param_index++;
 		} 
 		params = params->next;
 	} 
@@ -448,8 +451,13 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 
 		scope_bind(stack, d->symbol);
 
-		if (d->value) expr_resolve(d->value, stack);
+		if (d->value) {
+			expr_resolve(d->value, stack);
 
+			if (d->value->kind == EXPR_INTEGER) {
+				d->value->symbol = d->symbol;
+			}
+		}
 		if (d->type->kind == TYPE_FUNCTION) {
 			current_function = d;
 			int original_scope = stack->top;
