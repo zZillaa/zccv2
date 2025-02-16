@@ -57,3 +57,15 @@ int function6() {
 
 	return d;
 }
+
+int function7() {
+	int q = 5;
+	int arr[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	int vqi[3] = {1, 2, 3};
+
+	return q;
+}
+
+int multiply_two_numbers(int a, int b) {
+	return a * b;
+}

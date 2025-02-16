@@ -185,7 +185,7 @@ char* symbol_codegen(struct symbol* sym) {
 
 		case SYMBOL_PARAM:
 			if (sym->type->kind == TYPE_INTEGER) {
-				snprintf(buffer, sizeof(buffer), "rbp %d", 16 + (sym->s.param_index * 8));
+				snprintf(buffer, sizeof(buffer), "rbp - %d", 16 + (sym->s.param_index * 8));
 			}			
 			return buffer;
 
@@ -369,7 +369,6 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		    break;
 
 		case EXPR_NAME:
-
 			e->reg = scratch_alloc(sregs);
 
 			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
@@ -457,18 +456,17 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case STMT_EXPR:
 			expr_codegen(sregs, writer, s->expr);
-			// scratch_free(sregs, s->expr->reg);
 			break;
 
 		// TODO
 		// Retrieve function name and assign to one of the expr nodes
-		// case STMT_RETURN:
-		// 	expr_codegen(sregs, writer, s->expr);
-		// 	snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, s->expr->reg));
-		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIsVE);
+		case STMT_RETURN:
+			expr_codegen(sregs, writer, s->expr);
+			snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, s->expr->reg));
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-		// 	scratch_free(sregs, s->expr->reg);
-		// 	break;
+			scratch_free(sregs, s->expr->reg);
+			break;
 	}	
 	stmt_codegen(sregs, writer, s->next);
 }
@@ -537,16 +535,12 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     	if (d->type->kind == TYPE_FUNCTION) {
     		snprintf(buffer, sizeof(buffer), "\n%s:", d->name);
     		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-    		printf("I am here\n");
-    		if (!d->symbol) printf("Sadly...\n");
-    		if (!d->code->symbol) printf("Unfortunately\n");
-    		int num_statements = d->code->symbol ? d->code->symbol->s.local_var_index : 0;
-    		printf("What's the total num of data types? Number: %d\n", d->symbol->s.param_index + d->symbol->s.local_var_index);
-    		int num_bytes = d->symbol->s.param_index + d->symbol->s.local_var_index;  
-    		snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %d", num_bytes);
+
+    		snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %ld", d->symbol->s.total_local_bytes);
     		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
     		if (d->code) stmt_codegen(sregs, writer, d->code);
+
     	}
 
     	d = d->next;

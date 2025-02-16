@@ -19,6 +19,8 @@ global function3
 global function4
 global function5
 global function6
+global function7
+global multiply_two_numbers
 global _start
 
 _start:
@@ -27,34 +29,67 @@ _start:
 add:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 15
+	sub rsp, 16
+	mov rax, [rbp - 16]
+	mov rbx, [rbp - 16]
+	add rax, rbx
+	mov rax, rax
 
 function:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 52
+	sub rsp, 32
+	mov rax, [rbp - 24]
+	mov rax, rax
 
 function1:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 69
+	sub rsp, 32
+	mov rax, [rbp - 24]
+	mov rax, rax
 
 function3:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 30
+	sub rsp, 16
+	mov rax, [rbp - 24]
+	mov rax, rax
 
 function4:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 30
+	sub rsp, 16
+	mov rax, [rbp - 24]
+	mov rax, rax
 
 function5:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 30
+	sub rsp, 16
+	mov rax, [rbp - 24]
+	mov rax, rax
 
 function6:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 50
+	sub rsp, 16
+	mov rax, [rbp - 32]
+	mov rax, rax
+
+function7:
+	push rbp
+	mov rbp, rsp
+	sub rsp, 64
+	mov rax, [rbp - 8]
+	mov rax, rax
+
+multiply_two_numbers:
+	push rbp
+	mov rbp, rsp
+	sub rsp, 16
+	mov rax, [rbp - 16]
+	mov rbx, [rbp - 16]
+	mul rbx
+	mov r8, rax
+	mov rax, r8

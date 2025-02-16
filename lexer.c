@@ -72,7 +72,7 @@ Token* lexer(char* contents) {
             do {
                 buffer[bufferidx++] = c;
                 c = contents[++i];
-            } while (isalnum(c) && bufferidx < MAX_LENGTH);
+            } while ((isalnum(c) || c == '_') && bufferidx < MAX_LENGTH);
 
             buffer[bufferidx] = '\0';
 

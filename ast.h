@@ -153,6 +153,8 @@ struct symbol {
     struct {
         int param_index;
         int local_var_index;
+        size_t byte_offset;
+        size_t total_local_bytes;
     } s;
 };
 
@@ -171,7 +173,8 @@ void debug_print_scope_stack(struct stack* stack, const char* location);
 expr_t get_expr_type(Token* token);
 stmt_t get_stmt_type(Token* token);
 type_t get_type(Token* token);
-size_t get_num_bytes(struct decl* d);
+size_t get_num_bytes(struct decl* d, struct type* t);
+size_t get_param_bytes(struct param_list* params);
 
 struct expr* expr_create_integer_literal( int i );
 struct expr* expr_create_boolean_literal( int b );
