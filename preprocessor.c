@@ -56,12 +56,10 @@ bool match(Preprocessor* preprocessor, char expected) {
 }
 
 void parse_include_directive(Preprocessor* preprocessor) {
-
 	while (*preprocessor->end != '\n') {
 		char c = peek(preprocessor);
 
 		if (isspace(c)) {
-			preprocessor->end++;
 			advance(preprocessor);
 			continue;
 		}
@@ -78,19 +76,90 @@ void parse_include_directive(Preprocessor* preprocessor) {
 				break;
 
 			case ' " ':
-				do {
+				while (*preprocessor->end != ' " ') {
 					advance(preprocessor);
-				} while (*preprocessor->end != ' " ');
-
+				}
 				break;
 		}
 
-		int length = preprocessor->end - preprocessor->start;
-		const char* file = strndup(preprocessor->start, length);
 	}
+	// as preprocessor->start + 1 because preprocessor->start included < or " in file path
+	int length = preprocessor->end - (preprocessor->start + 1);
+	const char* file_path = strndup(preprocessor->start, length);
+	preprocessor->include_paths[include_path_count++] = strdup(file_path);
+	free(file_path);
 
 }
 
+void parse_define_directive(Preprocessor* preprocessor) {
+	while (isspace(peek(preprocessor))) {
+		advance(preprocessor);
+	}
+
+	preprocessor->start = preprocessor->end;
+	if (!isalpha(peek(preprocesor))) return;
+
+	while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
+		advance(preprocessor);
+	}
+
+	int length = preprocessor->end - preprocessor->start;
+	char* name = strndup(preprocessor->start, length);
+
+	while (isspace(peek(preprocessor))) {
+		advance(preprocessor);
+	} 
+
+	preprocessor->start = preprocessor->end;
+	if (!isalnum(peek(preprocessor)) || peek(preprocessor) != '-') return;
+
+	char c = peek(preprocessor);
+	if (c == '-') {
+		number(preprocessor);
+	} else {
+		while (*preprocessor->end != '\n' && *preprocessor->end != '\0') {
+			advance(preprocessor);
+		}
+	}
+
+	int replacement_length = preprocessor->end - preprocessor->start;
+	char* replacement_text = strndup(preprocessor->start, length);
+
+	preprocessor->macros[macro_count].name = strdup(name);
+	if (c == '-' || isdigit(c)) {
+		int value = atoi(replacement_text);
+		preprocessor->macros[macro_count].u.value = value;
+	} else {
+		preprocessor->macros[macro_count].u.replacement = strdup(replacement_text);
+	}
+
+	preprocessor->macro_count++;
+
+	free(name);
+	free(replacement_text);
+}
+
+void number(Preprocessor* preprocessor) {
+	bool isNegative = false;
+	if (*preprocessor->start == '-') {
+		isNegative = true;
+		advance(preprocessor);
+	}
+
+	while (isdigit(peek(preprocessor))) {
+		advance(preprocessor);
+	}
+
+	int length = preprocessor->end - preprocessor->start;
+	char* num_str = strndup(preprocessor->start, length);
+	int value = atoi(num_str);
+	if (isNegative) value = -value;
+	preprocessor->macros[macro_count].u.value = value;
+	preprocessor->macro_count++;
+
+	free(num_str);
+	
+}
 void identifier(Preprocessor* preprocessor) {
 	if (isalpha(peek(preprocessor))) {
 		while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
@@ -111,26 +180,6 @@ void identifier(Preprocessor* preprocessor) {
 	
 }
 
-void number(Preprocessor* preprocessor) {
-	bool isNegative = false;
-	if (*lexer->start == '-') {
-		isNegative = true;
-		advance(preprocessor);
-	}
-
-	while (isdigit(peek(preprocessor))) {
-		advance(preprocessor);
-	}
-
-	int length = preprocessor->end - preprocessor->start;
-	char* num_str = strndup(preprocessor->start, length);
-	int value = atoi(num_str);
-	if (isNegative) value = -value;
-	preprocessor->macros[macro_count++].u.value = value;
-
-	free(num_str);
-	
-}
 
 void marker(Preprocessor* preprocessor) {
 	char c = advance(preprocessor);
