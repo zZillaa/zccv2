@@ -10,7 +10,7 @@ char* keywords[] = {"int", "char", "boolean", "if", "else", "for", "while", "ret
 keyword_t get_keyword_type(char* str) {
     for (int i = 0; i < NUM_KEYWORDS; i++) {
         if (strcmp(str, keywords[i]) == 0) {
-            return (keyword_t)i;
+        return (keyword_t)i;
         }
     }
     return KEYWORD_UNKNOWN;
@@ -18,91 +18,266 @@ keyword_t get_keyword_type(char* str) {
 
 TokenType keyword_to_token(Keyword* word) {
     switch (word->type) {
-        case KEYWORD_INT:
-            return TOKEN_INT;
-
-        case KEYWORD_CHAR:
-            return TOKEN_CHAR;
-
-        case KEYWORD_BOOL:
-            return TOKEN_BOOLEAN;
-
-        case KEYWORD_IF:
-            return TOKEN_IF;
-
-        case KEYWORD_ELSE:
-            return TOKEN_ELSE;
-
-        case KEYWORD_FOR:
-            return TOKEN_FOR;
-
-        case KEYWORD_WHILE:
-            return TOKEN_WHILE;
-
-        case KEYWORD_RETURN:
-            return TOKEN_RETURN;
-
-        case KEYWORD_VOID:
-            return TOKEN_VOID;
-
+        case KEYWORD_INT: return TOKEN_INT;
+        case KEYWORD_CHAR: return TOKEN_CHAR;
+        case KEYWORD_BOOL: return TOKEN_BOOLEAN;
+        case KEYWORD_IF: return TOKEN_IF;
+        case KEYWORD_ELSE: return TOKEN_ELSE;
+        case KEYWORD_FOR: return TOKEN_FOR;
+        case KEYWORD_WHILE: return TOKEN_WHILE;
+        case KEYWORD_RETURN: return TOKEN_RETURN;
+        case KEYWORD_VOID: return TOKEN_VOID;
         default:
             fprintf(stderr, "Error: Unknown word\n");
             return TOKEN_UNKNOWN;
     }
 }
 
-Token* lexer(char* contents) {
-    Token* tokens = malloc(sizeof(Token) * max_tokens);
-    if (!tokens) return NULL;
 
-    char* start = contents;
-    char* end = contents;
+Token create_token(TokenType type, int line, int column) {
+    Token token = {
+        .type = type,
+        .line = line,
+        .column = column
+    }
+    return token;
+}
 
-    int line = 1;
-    int column = 1;
-    int tokenIdx = 0;
+Token create_char_token(TokenType type, char value, int line, int column) {
+    Token token = create_token(type, line, column);
+    token.value.character = value;
+    return token;
+}
 
+Token create_int_token(TokenType type, int value, int line, int column) {
+    Token token = create_token(type, line, column);
+    token.value.integer_value = value;
+    return token;
+}
 
-    while (*end != '\0') {
-        while (isspace(*end)) {
-            if (*end == '\n') {
-                line++;
-                column = 1;
-            } else {
-                column++;
-            }
-            end++;
-        }
+Token create_string_token(TokenType type, char* value, int line, int column) {
+    Token token = create_token(type, line, column);
+    token.value.string = strdup(value);
+    return token;
+}
 
-        start = end;
+Lexer* init_lexer(char* source) {
+    Lexer* lexer = malloc(sizeof(Lexer));
+    if (!lexer) return NULL;
 
-        if (isalpha(*end)) {
-            while (isalnum(*end) || *end == '_') end++;
-        } else if (isdigit(*end) || (*end == '-' && isdigit(*(end + 1))) {
-            if (*end == '-') end++;
-            while (isdigit(*end)) end++;
-        } else if (ispunct(*end)) {
-            end++:
-            if (*end == '=' || (*end == '+' && *(end - 1) == '+') || (*end == '-' && *(end - 1) == '-')) end++;
-        } else  {
-            end++;
-        }
+    lexer->start = source;
+    lexer->end = source;
+    lexer->line =  1;
+    lexer->column = 1;
+    lexer->tokenIdx = 0;
+    lexer->capacity = 128;
 
-        int length = end - start;
-        char* buffer = strndup(start, length);
+    lexer->tokens = malloc(sizeof(Token) *  lexer->capacity);
+    if (!lexer->tokens) {
+        free(lexer);
+        return NULL;
+    }
+    return lexer;
+}
 
-        tokens[tokenIdx].type = get_keyword_type(buffer);
-        tokens[tokenIdx].line = line;
-        tokens[tokenIdx].column = column;
-        tokenIdx++;
-
-        column += length;
+bool add_token(Lexer* lexer, Token token) {
+    if (lexer->tokenIdx >= lexer->capacity) {
+        capacity *= 2;
+        lexer->tokens = realloc(lexer->tokens, sizeof(Token) * capacity);
+        if (!lexer->tokens) return NULL;
     }
 
-    tokens[tokenIdx].type = TOKEN_EOF;
-    tokens[tokenIdx].line = line;
-    tokens[tokenIdx].column = column;
+    lexer->tokens[lexer->tokenIdx++] = token;
+    return true;
+}
 
+char advance(Lexer* lexer) {
+    lexer->column++;
+    return *lexer->end++;
+}
+
+char peek(Lexer* lexer) {
+    return *lexer->end;
+} 
+
+char peek_next(Lexer* lexer) {
+    if (*(lexer->end) == '\0') return '\0';
+    return *(lexer->end + 1);
+}
+
+bool match(Lexer* lexer, char expected) {
+    if (peek(lexer) != expected) return false;
+    advance(lexer);
+    return true;
+}
+
+void identifier(Lexer* lexer) {
+    if (isalpha(peek(lexer))) {
+        while (isalnum(peek(lexer)) || peek(lexer) == '_') {
+            advance(lexer);
+        }
+    }
+
+    int length = lexer->end - lexer->start;
+    char* text = strndup(lexer->start, length);
+
+    keyword_t keyword_type = get_keyword_type(&text);
+    if (keyword_type != KEYWORD_UNKNOWN) {
+        Keyword word = { .type = keyword_type, .name = text};
+        TokenType type = keyword_to_token(&word);
+        add_token(lexer, create_string_token(type, text, lexer->line, lexer->end - length));
+    } else {
+        add_token(lexer, create_string_token(TOKEN_ID, text, lexer->line, lexer->end - length));
+    }
+
+    free(text);
+}   
+
+void number(Lexer* lexer) {
+    bool isNegative = false;
+    if (*lexer->start == '-') {
+        isNegative = true;
+        advance(lexer);
+    }
+
+    while (isdigit(peek(lexer))) {
+        advance(lexer);
+    }
+
+    int length = lexer->end - lexer->start;
+    char* num_str = strndup(lexer->start, length);
+    int value = atoi(num_str);
+    if (isNegative) value = -value;
+
+    add_token(lexer, create_int_token(TOKEN_INT_LITERAL, value, lexer->line, lexer->column - length));
+    free(num_str);
+}
+
+void operator(Lexer* lexer) {
+    char c = advance(lexer);
+    TokenType type = TOKEN_UNKNOWN;
+    bool isCompound = false;
+
+    switch (c) {
+        case '+':
+            if (match(lexer, '=')) {
+                type = TOKEN_ADD_AND_ASSIGN;
+                isCompound = true;
+            } else if (match(lexer, '+')) {
+                type = TOKEN_INCREMENT;
+                isCompound = true;
+            } else {
+                type = TOKEN_ADD;
+            }
+            break;
+
+        case '-': {
+            if (match(lexer, '=')) {
+                type = TOKEN_SUBTRACT_AND_ASSIGN;
+                isCompound = true;
+            } else if (match(lexer, '-')) {
+                type = TOKEN_DECREMENT;
+                isCompound = true;
+            } else {
+                type = TOKEN_SUBTRACT;
+            }
+            break;
+
+        case '*':
+            if (match(lexer, '=')) {
+                type = TOKEN_MULTIPLY_AND_ASSIGN;
+                isCompound = true;
+            } else {
+                type = TOKEN_MULTIPLY;
+            }
+            break;
+
+        case '/':
+            if (match(lexer, '/')) {
+                type = TOKEN_DIVIDE_AND_ASSIGN;
+                isCompoound = true;
+            } else {
+                type = TOKEN_DIVIDE;
+            }
+            break;
+
+        case '<':
+            if (match(lexer, '=')) {
+                type = TOKEN_LESS_EQUAL;
+                isCompound = true;
+            } else {
+                type = TOKEN_LESS;
+            }
+            break;
+
+        case '>':
+            if (match(lexer, '=')) {
+                type = TOKEN_GREATER_EQUAL;
+                isCompound = true;
+            } else {
+                type = TOKEN_GREATER;
+            }
+            break;
+
+        case '=':
+            if (match(lexer, '=')) {
+                type = TOKEN_EQUAL;
+                isCompound = true;
+            } else {
+                type = TOKEN_ASSIGNMENT;
+            }
+            break;
+
+        case '!':
+            if (match(lexer, '=')) {
+                type = TOKEN_NOT_EQUAL;
+                isCompound = true;
+            } else {
+                type = TOKEN_NOT;
+            }
+            break;
+        }
+    }
+
+    if (isCompound) {
+        char op_str[3] = {c, lexer->end[-1], '\0'};
+        add_token(lexer, create_string_token(type, op_str, lexer->line, lexer->column - 2));
+    } else {
+        add_token(lexer, create_char_token(type, c, lexer->line, lexer->column - 1));
+    }
+}
+
+Token* lexical_analysis(char* source) {
+    Lexer* lexer = init_lexer(source);
+    if (!lexer) return NULL;
+
+    while (lexer->end != '\0') {
+        char c = peek(lexer);
+
+        if (isspace(c)) {
+            if (c == '\n') {
+                lexer->line++;
+                lexer->column = 1;
+            }
+            advancce(lexer);
+            continue;
+        }
+
+        lexer->start = lexer->end;
+
+        if (isalpha(c)) {
+            identifier(lexer);
+        } else if (isdigit(c) || (c == '-' && is_digit(peek_next(lexer)))) {
+            number(lexer);
+        } else if (strchr("+-*/<>=!", c)) {
+            operator(lexer);
+        } else if (strchr(";(){}[],")) {
+        
+    }
+
+    add_token(lexer, create_char_token(type, c, lexer->line, lexer->column));
+    Token* tokens = lexer->tokens;
+    free(lexer);
     return tokens;
 }
 
