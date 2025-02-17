@@ -14,7 +14,15 @@ Preprocessor* init_preprocessor(char* source) {
 	preprocessor->line = 1;
 	preprocessor->column = 1;
 	preprocessor->start = source;
-	preprocessor->end = source;
+	preprocessor->end = source;#define MAX_NUMBERS 100
+
+int function() {
+	int x = 5;
+	int y = 20;
+	int z = MAX_NUMBERS + y;
+
+	return z;
+}
 	preprocessor->output = NULL;
 	
 	preprocessor->macros = malloc(sizeof(MacroDefinition) * MACRO_COUNT);
@@ -48,15 +56,39 @@ bool match(Preprocessor* preprocessor, char expected) {
 }
 
 void parse_include_directive(Preprocessor* preprocessor) {
-	while (*preprocessor->end != '\0') {
-		if (!match(preprocessor, '<') ||!match(preprocessor, '"')) {
-			
+
+	while (*preprocessor->end != '\n') {
+		char c = peek(preprocessor);
+
+		if (isspace(c)) {
+			preprocessor->end++;
+			advance(preprocessor);
+			continue;
 		}
 
-		advance(preprocessor);
-		
+		preprocessor->start = preprocessor->end;
 
+		if (!match(preprocessor, '<') || !match(preprocessor, ' " ')) return;
+
+		switch (c) {
+			case '<':
+				while (*preprocessor->end != '>') {
+					advance(preprocessor);
+				}
+				break;
+
+			case ' " ':
+				do {
+					advance(preprocessor);
+				} while (*preprocessor->end != ' " ');
+
+				break;
+		}
+
+		int length = preprocessor->end - preprocessor->start;
+		const char* file = strndup(preprocessor->start, length);
 	}
+
 }
 
 void identifier(Preprocessor* preprocessor) {
@@ -77,7 +109,6 @@ void identifier(Preprocessor* preprocessor) {
 
 	free(text);
 	
-
 }
 
 void number(Preprocessor* preprocessor) {

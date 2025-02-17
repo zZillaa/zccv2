@@ -56,7 +56,7 @@ Token create_string_token(TokenType type, char* value, int line, int column) {
     return token;
 }
 
-Lexer* init_lexer(char* source) {
+Lexer* init_lexer(const char* source) {
     Lexer* lexer = malloc(sizeof(Lexer));
     if (!lexer) return NULL;
 
