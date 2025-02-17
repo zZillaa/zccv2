@@ -41,6 +41,24 @@ char peek_next(Preprocessor* preprocessor) {
 	return *(preprocessor->end + 1);
 }
 
+bool match(Preprocessor* preprocessor, char expected) {
+	if (peek(preprocessor) != expected) return false;
+	advance(preprocessor);
+	return true;
+}
+
+void parse_include_directive(Preprocessor* preprocessor) {
+	while (*preprocessor->end != '\0') {
+		if (!match(preprocessor, '<') ||!match(preprocessor, '"')) {
+			
+		}
+
+		advance(preprocessor);
+		
+
+	}
+}
+
 void identifier(Preprocessor* preprocessor) {
 	if (isalpha(peek(preprocessor))) {
 		while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
@@ -50,7 +68,12 @@ void identifier(Preprocessor* preprocessor) {
 
 	int length = preprocessor->end - preprocessor->start;
 	char* text = strndup(preprocessor->start, length);
-	preprocessor->macros[macro_count++].name = strdup(text);
+	
+	if (strcmp(text, "#define") == 0) {
+		parse_define_directive(preprocessor);
+	} else if (strcmp(text, "#include") == 0) {
+		parse_include_directive(preprocessor);
+	}
 
 	free(text);
 	
@@ -78,34 +101,11 @@ void number(Preprocessor* preprocessor) {
 	
 }
 
-void directive(Preprocessor* preprocessor) {
-	if (isalpha(peek(preprocessor))) {
-		while (isalpha(peek(preprocessor))) {
-			advance(preprocessor);
-		}
-	}
-
-	int length = preprocessor->end - preprocessor->start;
-	char* text = strndup(preprocessor->start, length);
-
-	if (strcmp(text, "#define") == 0) {
-		identifier(preprocessor);
-	} else if (strcmp(text, "#include") == 0) {
-
-	}
-
-	free(text);
-	
-}
-
 void marker(Preprocessor* preprocessor) {
 	char c = advance(preprocessor);
 
 	switch (c) {
 		case '#':
-			directive(preprocessor);
-			break;
-
 		case '<': 
 		case '"':
 			identifier(preprocessor);
