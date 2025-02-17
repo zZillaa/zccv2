@@ -14,8 +14,11 @@ function:
 
 	mov rax, 5
 	mov [rbp - 4], rax
-	mov rbx, 20
-	mov [rbp - 8], rbx
-	mov r8, [rbp - 4]
-	mov r9, [rbp - 8]
-	add r8, r9
+	mov [rbp - 4], rax
+	mov rax, 20
+	mov [rbp - 8], rax
+	mov [rbp - 8], rax
+	mov rax, [rbp - 4]
+	mov rbx, [rbp - 8]
+	add rax, rbx
+	mov [rbp - 12], rax

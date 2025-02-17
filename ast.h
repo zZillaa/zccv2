@@ -68,6 +68,9 @@ typedef enum {
     EXPR_EQUAL,
     EXPR_NOT_EQUAL,
 
+    EXPR_BREAK,
+    EXPR_CONTINUE,
+
     EXPR_NAME, // 17
     EXPR_ASSIGNMENT,
     

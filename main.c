@@ -3,11 +3,12 @@
 #include <errno.h>
 #include <ctype.h>
 #include <string.h>
+#include "preprocess.h"
 #include "lexer.h"
 #include "ast.h"
 #include "codegen.h"
 
-long getFileSize(FILE* file) {
+long get_file_size(FILE* file) {
     fpos_t posIndicator;
     if (fgetpos(file, &posIndicator) != 0) {
         fprintf(stderr, "fgetpos() failed\n");
@@ -25,14 +26,14 @@ long getFileSize(FILE* file) {
     return file_size;
 }
 
-char* getFileContents(const char* file_path) {
+char* get_file_contents(const char* file_path) {
     FILE* file = fopen(file_path, "rb");
     if (!file) {
         perror("Error opening file");
         exit(EXIT_FAILURE);
     }
 
-    long file_size = getFileSize(file);
+    long file_size = get_file_size(file);
     char* contents = malloc(file_size + 1);
     char* writeIt = contents;
 
@@ -64,10 +65,11 @@ int main(int argc, char **argv) {
     }
 
     const char* file_path = argv[1];
-    char* contents = getFileContents(file_path);
+    char* contents = get_file_contents(file_path);
     if (contents != NULL) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
-        Token* tokens = lexical_analysis(contents);
+        char* preprocessed_output = preprocess(contents);
+        Token* tokens = lexical_analysis(processed_output);
         print_tokens(tokens);
         
         struct program* ast = build_ast(tokens);

@@ -167,6 +167,8 @@ void scope_bind(struct stack* stack, struct symbol* symbol) {
 
 	symbol->next = current_table->symbol;
 	current_table->symbol = symbol;
+
+	printf("Successfully bound symbol %s to scope level '(%d)'\n", symbol->name, stack->top);
 }
 
 void debug_print_scope_stack(struct stack* stack, const char* location) {
@@ -675,6 +677,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
 
     switch (e->kind) {
         case EXPR_NAME: {
+        	printf("In expr_typecheck with\n");
             // Lookup the symbol in current scope stack
             int found_scope;
             struct symbol* sym = scope_lookup(stack, e->name, &found_scope);
@@ -683,6 +686,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
                 return type_create(TYPE_UNKNOWN, NULL, NULL);
             }
             e->symbol = sym;  // Update the symbol reference
+            printf("Leaving expr_typecheck with %s\n", e->symbol->name);
             result = type_copy(sym->type);
             break;
         }

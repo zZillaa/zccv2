@@ -1,7 +1,8 @@
 #include "lexer.h"
 #define NUM_KEYWORDS 10
 
-char* keywords[] = {"int", "char", "boolean", "if", "else", "for", "while", "return", "void", "struct"};
+const char* keywords[] = {"int", "char", "boolean", "if", "else", "for", "while", "return", "void", "struct",
+                    "break", "continue"};
 keyword_t get_keyword_type(char* str) {
     for (int i = 0; i < NUM_KEYWORDS; i++) {
         if (strcmp(str, keywords[i]) == 0) {

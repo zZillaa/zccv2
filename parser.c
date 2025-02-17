@@ -137,22 +137,11 @@ struct stmt* stmt_create(stmt_t kind, struct decl* decl, struct expr* init_expr,
 
 type_t get_type(Token* token) {
     switch (token->type) {
-        case TOKEN_INT:
-            return TYPE_INTEGER;
-
-        case TOKEN_BOOLEAN:
-            return TYPE_BOOLEAN;
-
-        case TOKEN_CHAR:
-            return TYPE_CHARACTER;
-
-        case TOKEN_VOID:
-            return TYPE_VOID;
-
-        case TOKEN_STRUCT:
-            return TYPE_STRUCT;
-
-
+        case TOKEN_INT: return TYPE_INTEGER;
+        case TOKEN_BOOLEAN: return TYPE_BOOLEAN;
+        case TOKEN_CHAR: return TYPE_CHARACTER;
+        case TOKEN_VOID: return TYPE_VOID;
+        case TOKEN_STRUCT: return TYPE_STRUCT;
         default:
             fprintf(stderr, "Error: Encountered unknown token type\n");
             return TOKEN_UNKNOWN;
@@ -161,85 +150,38 @@ type_t get_type(Token* token) {
 
 stmt_t get_stmt_type(Token* token) {
     switch (token->type) {
-        case TOKEN_ID:
-            return STMT_DECL;
-
-        case TOKEN_RETURN:
-            return STMT_RETURN;
-
-        case TOKEN_FOR:
-            return STMT_FOR;
-
-        case TOKEN_WHILE:
-            return STMT_WHILE;
+        case TOKEN_ID: return STMT_DECL;
+        case TOKEN_RETURN: return STMT_RETURN;
+        case TOKEN_FOR: return STMT_FOR;
+        case TOKEN_WHILE: return STMT_WHILE;
     }
 }
 
 expr_t get_expr_type(Token* token) {
     switch (token->type) {
-        case TOKEN_INT_LITERAL:
-            return EXPR_INTEGER;
-
-        case TOKEN_STRING_LITERAL:
-            return EXPR_STRING;
-
-        case TOKEN_BOOLEAN_LITERAL:
-            return EXPR_BOOLEAN;
-        
-        case TOKEN_ID:
-            return EXPR_NAME;
-        
-        case TOKEN_ASSIGNMENT:
-            return EXPR_ASSIGNMENT;
-        
-        case TOKEN_CHAR:
-            return EXPR_CHARACTER;
-
-        case TOKEN_LESS:
-            return EXPR_LESS;
-
-        case TOKEN_GREATER:
-            return EXPR_GREATER;
-
-        case TOKEN_LESS_EQUAL:
-            return EXPR_LESS_EQUAL;
-
-        case TOKEN_GREATER_EQUAL:
-            return EXPR_GREATER_EQUAL;
-
-        case TOKEN_NOT_EQUAL:
-            return EXPR_NOT_EQUAL;
-
-        case TOKEN_ADD_AND_ASSIGN:
-            return EXPR_ADD_AND_ASSIGN;
-
-        case TOKEN_SUBTRACT_AND_ASSIGN:
-            return EXPR_SUB_AND_ASSIGN;
-
-        case TOKEN_MULTIPLY_AND_ASSIGN:
-            return EXPR_MUL_AND_ASSIGN;
-
-        case TOKEN_DIVIDE_AND_ASSIGN:
-            return EXPR_DIV_AND_ASSIGN;
-
-        case TOKEN_INCREMENT:
-            return EXPR_INCREMENT;
-
-        case TOKEN_DECREMENT:
-            return EXPR_DECREMENT;
-
-        case TOKEN_ADD:
-            return EXPR_ADD;
-
-        case TOKEN_SUBTRACT:
-            return EXPR_SUB;
-
-        case TOKEN_MULTIPLY:
-            return EXPR_MUL;
-
-        case TOKEN_DIVIDE:
-            return EXPR_DIV;
-
+        case TOKEN_BREAK: return EXPR_BREAK;
+        case TOKEN_CONTINUE: return EXPR_CONTINUE;
+        case TOKEN_INT_LITERAL: return EXPR_INTEGER;
+        case TOKEN_STRING_LITERAL: return EXPR_STRING;
+        case TOKEN_BOOLEAN_LITERAL: return EXPR_BOOLEAN;
+        case TOKEN_ID: return EXPR_NAME;
+        case TOKEN_ASSIGNMENT: return EXPR_ASSIGNMENT;
+        case TOKEN_CHAR: return EXPR_CHARACTER;
+        case TOKEN_LESS: return EXPR_LESS;
+        case TOKEN_GREATER: return EXPR_GREATER;
+        case TOKEN_LESS_EQUAL: return EXPR_LESS_EQUAL;
+        case TOKEN_GREATER_EQUAL: return EXPR_GREATER_EQUAL;
+        case TOKEN_NOT_EQUAL: return EXPR_NOT_EQUAL;
+        case TOKEN_ADD_AND_ASSIGN: return EXPR_ADD_AND_ASSIGN;
+        case TOKEN_SUBTRACT_AND_ASSIGN: return EXPR_SUB_AND_ASSIGN;
+        case TOKEN_MULTIPLY_AND_ASSIGN: return EXPR_MUL_AND_ASSIGN;
+        case TOKEN_DIVIDE_AND_ASSIGN: return EXPR_DIV_AND_ASSIGN;
+        case TOKEN_INCREMENT: return EXPR_INCREMENT;
+        case TOKEN_DECREMENT: return EXPR_DECREMENT;
+        case TOKEN_ADD: return EXPR_ADD;
+        case TOKEN_SUBTRACT: return EXPR_SUB;
+        case TOKEN_MULTIPLY: return EXPR_MUL;
+        case TOKEN_DIVIDE: return EXPR_DIV;
         default:
             fprintf(stderr, "Error: Unrecognized token type %d for expression.\n", token->type);
             exit(EXIT_FAILURE);

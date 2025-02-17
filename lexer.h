@@ -10,6 +10,7 @@
 
 typedef long long integer_t;
 typedef enum TokenType {
+    // token keywords
     TOKEN_INT,
     TOKEN_CHAR,
     TOKEN_BOOLEAN,
@@ -20,6 +21,8 @@ typedef enum TokenType {
     TOKEN_RETURN,
     TOKEN_VOID,
     TOKEN_STRUCT,
+    TOKEN_BREAK,
+    TOKEN_CONTINUE,
     
     TOKEN_ID,
     TOKEN_INT_LITERAL,
