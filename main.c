@@ -27,7 +27,7 @@ long getFileSize(FILE* file) {
 
 char* getFileContents(const char* file_path) {
     FILE* file = fopen(file_path, "rb");
-    if (file == NULL) {
+    if (!file) {
         perror("Error opening file");
         exit(EXIT_FAILURE);
     }
@@ -51,6 +51,8 @@ char* getFileContents(const char* file_path) {
         exit(EXIT_FAILURE);
     }
     contents[bytes_read] ='\0';
+    fclose(file);
+
     return contents;
 
 }
@@ -65,8 +67,8 @@ int main(int argc, char **argv) {
     char* contents = getFileContents(file_path);
     if (contents != NULL) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
-        Token* tokens = lexer(contents);
-        // print_tokens(tokens);
+        Token* tokens = lexical_analysis(contents);
+        print_tokens(tokens);
         
         // struct program* ast = build_ast(tokens);
         // print_ast(ast);
@@ -88,7 +90,6 @@ int main(int argc, char **argv) {
         free_tokens(tokens);
         free(contents);
     }
-
 
     return EXIT_SUCCESS;
 }

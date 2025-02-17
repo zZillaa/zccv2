@@ -2,6 +2,11 @@
 #define LEXER_H
 #define MAX_LENGTH 1024
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdbool.h>
+#include <stdio.h>
 
 typedef long long integer_t;
 typedef enum TokenType {
@@ -108,14 +113,41 @@ typedef struct {
     int column;
 } LexerError;
 
+typedef struct {
+    char* start;
+    char* end;
+    Token* tokens;
+    int tokenIdx;
+    int line;
+    int column;
+    int capacity;
+} Lexer;
+
+char peek(Lexer* lexer);
+char peek_next(Lexer* lexer);
+char advance(Lexer* lexer);
+void operator(Lexer* lexer);
+void number(Lexer* lexer);
+void identifier(Lexer* lexer);
+void marker(Lexer* lexer);
+bool add_token(Lexer* lexer, Token token);
+bool match(Lexer* lexer, char expected);
+
+Token create_token(TokenType type, int line, int column);
+Token create_int_token(TokenType type, int value, int line, int column);
+Token create_string_token(TokenType type, char* value, int line, int column);
+Token create_char_token(TokenType type, char value, int line, int column);
+
+Lexer* init_lexer(char* source);
+Token* lexical_analysis(char* source);
+
 void print_lexer_error(const LexerError* error);
 
 keyword_t get_keyword_type(char* str);
 TokenType keyword_to_token(Keyword* word);
-Token* lexer(char* contents);
+// Token* lexer(char* contents);
 void print_tokens(Token* tokens);
 void free_token(Token* token);
 void free_tokens(Token* tokens);
-
 
 #endif
