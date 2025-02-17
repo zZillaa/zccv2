@@ -344,11 +344,13 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 	while (stmt) {
 		switch (stmt->kind) {
 			case STMT_DECL: {
+				printf("Here i am with statement declaration\n");
 				if (stmt->decl) decl_resolve(stmt->decl, stack);
 				break;
 			}
 
 			case STMT_EXPR: {
+				printf("Here I am with statement expression\n");
 				if (stmt->expr) expr_resolve(stmt->expr, stack);
 				break;
 			}
@@ -409,6 +411,17 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 
 		}
 		stmt = stmt->next;
+	}
+}
+
+void print_symbol_table(struct stack* stack) {
+	for (int i = stack->top; i >= 0; i--) {
+		printf("Scope level: %d\n", i);
+		struct symbol* current = stack->symbol_tables[i]->symbol;
+		while (current) {
+			printf("   Symbol: %s, Type: %d\n", current->name, current->type->kind);
+			current = current->next;
+		}
 	}
 }
 

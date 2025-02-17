@@ -142,7 +142,6 @@ typedef enum {
     SYMBOL_GLOBAL
 } symbol_t;
 
-
 struct symbol {
     symbol_t kind;
     struct type* type;
@@ -253,6 +252,5 @@ void decl_typecheck(struct decl* d, struct stack* stack);
 void stmt_typecheck(struct stmt* s, struct stack* stack);
 void program_typecheck(struct program* p, struct stack* stack);
 struct type* type_copy(struct type* t); // FOR Compound types
-
 
 #endif

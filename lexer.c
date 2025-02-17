@@ -303,7 +303,6 @@ void free_tokens(Token* tokens) {
     for (int i = 0; tokens[i].type != TOKEN_EOF; i++) {
         free_token(&tokens[i]);
     }
-
     free(tokens);
 }
 

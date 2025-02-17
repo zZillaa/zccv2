@@ -178,7 +178,7 @@ char* symbol_codegen(struct symbol* sym) {
 	switch (sym->kind) {
 		case SYMBOL_LOCAL:	
 			if (sym->type->kind == TYPE_INTEGER) {
-				snprintf(buffer, sizeof(buffer), "rbp - %d", 8 * (sym->s.local_var_index + 1));
+				snprintf(buffer, sizeof(buffer), "rbp - %d", 4 * (sym->s.local_var_index + 1));
 
 			}
 			return buffer;  
@@ -236,15 +236,12 @@ char* request_to_string(byte_size_t kind) {
 		case DB:
 			snprintf(buffer, sizeof(buffer), "resb");
 			return buffer;
-
 		case DD:
 			snprintf(buffer, sizeof(buffer), "resd");
 			return buffer;
-
 		case DW:
 			snprintf(buffer, sizeof(buffer), "resw");
 			return buffer;
-
 		case DQ:
 			snprintf(buffer, sizeof(buffer), "resq");
 			return buffer;
@@ -261,11 +258,9 @@ char* bytes_to_string(byte_size_t kind) {
 		case DD:
 			snprintf(buffer, sizeof(buffer), "dd");
 			return buffer;
-
 		case DW:
 			snprintf(buffer, sizeof(buffer), "dw");
 			return buffer;
-
 		case DQ:
 			snprintf(buffer, sizeof(buffer), "dq");
 			return buffer;
@@ -274,7 +269,6 @@ char* bytes_to_string(byte_size_t kind) {
 
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e) {
 	if (!sregs || !e) return;
-
 
 	char buffer[256];
 
@@ -358,7 +352,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_ASSIGNMENT:
 		    expr_codegen(sregs, writer, e->right);
-
+		    printf("Here i am with %s\n", e->symbol->name);
 		    snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
 		        symbol_codegen(e->left->symbol),
 		        scratch_name(sregs, e->right->reg));
@@ -370,10 +364,9 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_NAME:
 			e->reg = scratch_alloc(sregs);
-
-			snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-				symbol_codegen(e->symbol),
-				scratch_name(sregs, e->reg));
+			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
+				scratch_name(sregs, e->reg),
+				symbol_codegen(e->symbol));
 
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 			break;
@@ -396,7 +389,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			break;
 
 		case EXPR_ARRAY_VAL:
-			printf("Found array value: %d\n", e->integer_value);
+			// printf("Found array value: %d\n", e->integer_value);
 			break;
 
 		case EXPR_ARRAY:
@@ -412,13 +405,13 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			}
 			
 
-			printf("e->right is: %p\n", (void*)e->right);
+			// printf("e->right is: %p\n", (void*)e->right);
 
 			byte_size_t byte_t = get_byte_size(e->left->kind);
 			request_byte_t request_t = get_request_type(byte_t);
 
 			if (!e->right) {
-				printf("No initialization values\n");
+				// printf("No initialization values\n");
 				snprintf(buffer, sizeof(buffer), "\t%s: %s %d",
 					array_label,
 					request_to_string(byte_t), 
@@ -572,16 +565,16 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         	expr_codegen(sregs, writer, s->expr);
         	break;
 
-        case STMT_RETURN:
-			expr_codegen(sregs, writer, s->expr);
-			snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, s->expr->reg));
-			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			scratch_free(sregs, s->expr->reg);
+        // case STMT_RETURN:
+		// 	expr_codegen(sregs, writer, s->expr);
+		// 	snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, s->expr->reg));
+		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+		// 	scratch_free(sregs, s->expr->reg);
 
-			snprintf(buffer, sizeof(buffer), "\n\tleave\n\tret");
-			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+		// 	snprintf(buffer, sizeof(buffer), "\n\tleave\n\tret");
+		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-        	break;
+        // 	break;
     }
     
     stmt_codegen(sregs, writer, s->next);
@@ -667,9 +660,9 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         // Generate code for local variable initialization
         if (d->type->kind == TYPE_INTEGER) {
             if (d->value) {
-                expr_codegen(sregs, writer, d->value);
-                // Generate mov instruction to store in local variable's stack location
-                // You'll need to calculate the proper stack offset from d->symbol->s.byte_offset
+            	expr_codegen(sregs, writer, d->value);
+
+
             }
         }
     }
@@ -688,7 +681,6 @@ void free_register_table(struct RegisterTable* sregs) {
 	for (int r = 0; r < sregs->capacity; r++) {
 		free_register(sregs->registers[r]);
 	}
-
 	free(sregs);
 }
 
