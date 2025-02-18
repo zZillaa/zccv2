@@ -3,10 +3,10 @@
 #include <errno.h>
 #include <ctype.h>
 #include <string.h>
-#include "preprocess.h"
-#include "lexer.h"
-#include "ast.h"
-#include "codegen.h"
+#include "preprocessor.h"
+// #include "lexer.h"
+// #include "ast.h"
+// #include "codegen.h"
 
 long get_file_size(FILE* file) {
     fpos_t posIndicator;
@@ -68,28 +68,29 @@ int main(int argc, char **argv) {
     char* contents = get_file_contents(file_path);
     if (contents != NULL) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
-        char* preprocessed_output = preprocess(contents);
-        Token* tokens = lexical_analysis(processed_output);
-        print_tokens(tokens);
+        Preprocessor* preprocessor = preprocess(contents);
+        // Token* tokens = lexical_analysis(processed_output);
+        // print_tokens(tokens);
         
-        struct program* ast = build_ast(tokens);
-        print_ast(ast);
+        // struct program* ast = build_ast(tokens);
+        // print_ast(ast);
     
-        // Name resolution and type checking
-        struct stack* stack = create_stack();
-        scope_enter(stack, NULL);
-        program_resolve(ast, stack);    
-        program_typecheck(ast, stack);
+        // // Name resolution and type checking
+        // struct stack* stack = create_stack();
+        // scope_enter(stack, NULL);
+        // program_resolve(ast, stack);    
+        // program_typecheck(ast, stack);
 
-        struct RegisterTable* sregs = create_register_table();
-        struct AsmWriter* writer = create_asm_writer("output.asm");
-        decl_codegen(sregs, writer, ast->declaration, false);
+        // struct RegisterTable* sregs = create_register_table();
+        // struct AsmWriter* writer = create_asm_writer("output.asm");
+        // decl_codegen(sregs, writer, ast->declaration, false);
         
-        free_asm_writer(writer);
-        free_register_table(sregs);
-        free_stack(stack);
-        free_ast(ast);
-        free_tokens(tokens);
+        // free_asm_writer(writer);
+        // free_register_table(sregs);
+        // free_stack(stack);
+        // free_ast(ast);
+        // free_tokens(tokens);
+        free_preprocessor(preprocessor);
         free(contents);
     }
 
