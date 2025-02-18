@@ -216,8 +216,6 @@ void number(Preprocessor* preprocessor) {
 	char* num_str = strndup(preprocessor->start, length);
 	int value = atoi(num_str);
 	if (isNegative) value = -value;
-	preprocessor->macros[preprocessor->macro_count].u.value = value;
-	preprocessor->macro_count++;
 
 	free(num_str);
 	
@@ -306,12 +304,25 @@ char* get_file_contents(char* file_path) {
 
 }
 
-void write_to_source(char* source, char* contents) {
+void write_to_source(char* source, char* file_path) {
+	if (!contents) {
+		fprintf(stderr, "Error: You have not specified a correct file path\n");
+		return;
+	}	
+
+	char* contents = get_file_contents(file_path);
 	
 }
 
 void generator(Preprocessor* preprocessor, char* source) {
-	
+	for (size_t i = 0; i < preprocessor->IncludeList->include_count; i++) {
+		IncludeNode* current = IncludeList->head;
+		while (current) {
+			IncludeNode* next = current->next;
+			write_to_source(source, current->file_path);
+			current = next;	
+		}
+	}
 }
 
 Preprocessor* preprocess(char* source) {
