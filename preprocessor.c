@@ -6,28 +6,32 @@ Preprocessor* init_preprocessor(char* source) {
 		fprintf(stderr, "Error: Failed to allocate space for preprocessor\n");
 		return NULL;
 	}
-
-	preprocessor->include_path_count = 0;
-	preprocessor->macro_count = 0;
+	
 	preprocessor->line = 1;
 	preprocessor->column = 1;
 	preprocessor->start = source;
 	preprocessor->end = source;
 	preprocessor->output = NULL;
 	
-	preprocessor->macros = malloc(sizeof(Macro) * MACRO_COUNT);
-	if (!preprocessor->macros) {
+	preprocessor->MacroList = malloc(sizeof(MacroList));
+	if (!preprocessor->MacroList) {
 		fprintf(stderr, "Error: failed to allocate space for macros\n");
 		free(preprocessor);
 		return NULL;
 	}
+	preprocessor->MacroList->count = 0;
+	preprocessor->MacroList->macro_capacity = MACRO_COUNT;
+	preprocessor->MacroList->macros = malloc(sizeof(Macro) * MACRO_COUNT);
 
-	preprocessor->includes = malloc(sizeof(IncludeNode) * INCLUDE_PATHS);
-	if (!preprocessor->includes) {
-		free(preprocessor->macros);
+	preprocessor->IncludeList = malloc(sizeof(IncludeList));
+	if (!preprocessor->IncludeList) {
+		free(preprocessor->MacroList);
 		free(preprocessor);
 		return NULL;
 	}
+	preprocessor->IncludeList->include_count = 0;
+	preprocessor->IncludeList->head = NULL;
+	preprocessor->IncludeList->tail = NULL;
 
 	return preprocessor;
 }
@@ -74,9 +78,10 @@ void add_include_node(IncludeList* list, char* file_path, size_t original_pos) {
 		list->tail = node;
 
 	}
-	list->count++;
+	list->include_count++;
 
 }
+
 
 void parse_include_directive(Preprocessor* preprocessor) {
 	while (*preprocessor->end != '\n') {
@@ -109,8 +114,45 @@ void parse_include_directive(Preprocessor* preprocessor) {
 	// as preprocessor->start + 1 because preprocessor->start included < or " in file path
 	int length = preprocessor->end - (preprocessor->start + 1);
 	const char* file_path = strndup(preprocessor->start, length);
-	add_include_node(preprocessor->includes, file_path, start_pos )
+	add_include_node(preprocessor->includes, file_path, start_pos);
 	free((void*)file_path);
+
+}
+
+void add_string_macro_node(Macro* macros, char* name, char* replacement) {
+	Macro macro_node = {
+		.name = strdup(name),
+		.replacement = strdrup(replacement),
+		.next = NULL
+	}
+
+	if (MacroList->macro_count >= MacroList->macro_capacity) {
+		size_t new_capacity = MacroList->macro_capacity * 2;
+		MacroList = realloc(MacroList, new_capacity * sizeof(Macro));
+		if (!MacroList) return;
+
+		MacroList->macros[macro_count++] = macro_node;
+	}
+
+	MacroList->macros[macro_count++] = macro_node;
+}
+
+void add_int_macro_node(Macro* macros, char* name, int value) {
+	Macro macro_node = {
+		.name = strdup(name),
+		.value = value,
+		.next = NULL
+	}
+
+	if (MacroList->macro_count >= MacroList->capacity) {
+		size_t new_capacity = MacroList->capacity * 2;
+		MacroList = realloc(MacroList, new_capacity * sizeof(Macro));
+		if (!MacroList) return;
+
+		MacroList->macros[macro_count++] = macro_node;
+	}
+
+	MacroList->macro[macro_count++] = macro_node;
 
 }
 
@@ -148,15 +190,12 @@ void parse_define_directive(Preprocessor* preprocessor) {
 	int replacement_length = preprocessor->end - preprocessor->start;
 	char* replacement_text = strndup(preprocessor->start, length);
 
-	preprocessor->macros[preprocessor->macro_count].name = strdup(name);
 	if (c == '-' || isdigit(c)) {
 		int value = atoi(replacement_text);
-		preprocessor->macros[preprocessor->macros->macro_count].u.value = value;
+		add_int_macro_node(preprocessor->MacroList, name, value);
 	} else {
-		preprocessor->macros[preprocessor->macros->macro_count].u.replacement = strdup(replacement_text);
+		add_string_macro_node(preprocessor->MacroList, name, replacement_text);
 	}
-
-	preprocessor->macros->macro_count++;
 
 	free(name);
 	free(replacement_text);
@@ -272,9 +311,7 @@ void write_to_source(char* source, char* contents) {
 }
 
 void generator(Preprocessor* preprocessor, char* source) {
-	for (int i = 0; i < preprocessor->include_path_count; i++) {
-
-	}
+	
 }
 
 Preprocessor* preprocess(char* source) {
@@ -318,13 +355,20 @@ void free_macro(Macro macro) {
 void free_preprocessor(Preprocessor* preprocessor) {
 	if (!preprocessor) return;
 
-	for (int i = 0; i < preprocessor-> macro_count; i++) {
-		free_macro(preprocessor->macros[i]);
+	for (size_t i = 0; i < preprocessor->MacroList->macro_count; i++) {
+		Macro temp = MacroList->macros[i];
+		free_macro(temp);
 	}
 	
-	for (int i = 0; i < preprocessor->include_path_count; i++) {
-		free(preprocessor->include_paths[i]);
+	IncludeNode* current = preprocessor->IncludeList->head;
+	while (current) {
+		IncludeNode* next = current->next;
+		free(current->file_path);
+		free(current);
+		current = next;
 	}
-	free(preprocessor->include_paths);
+
+	free(preprocessor->IncludeList);
+	free(preprocessor->MacroList);
 	free(preprocessor);
 }
