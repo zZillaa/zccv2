@@ -7,7 +7,6 @@ Preprocessor* init_preprocessor(char* source) {
 		return NULL;
 	}
 
-	preprocessor->include_paths = NULL;
 	preprocessor->include_path_count = 0;
 	preprocessor->macro_count = 0;
 	preprocessor->line = 1;
@@ -23,8 +22,8 @@ Preprocessor* init_preprocessor(char* source) {
 		return NULL;
 	}
 
-	preprocessor->include_paths = malloc(sizeof(char*) * INCLUDE_PATHS);
-	if (!preprocessor->include_paths) {
+	preprocessor->includes = malloc(sizeof(IncludeNode) * INCLUDE_PATHS);
+	if (!preprocessor->includes) {
 		free(preprocessor->macros);
 		free(preprocessor);
 		return NULL;
@@ -51,6 +50,32 @@ bool match(Preprocessor* preprocessor, char expected) {
 	if (peek(preprocessor) != expected) return false;
 	advance(preprocessor);
 	return true;
+}
+
+void add_include_node(IncludeList* list, char* file_path, size_t original_pos) {
+	IncludeNode* node = malloc(sizeof(IncludeNode));
+	if (!node) return;
+
+	node->original_pos = original_pos;
+	node->next = NULL;
+	node->file_path = strdup(file_path);
+	if (!node->file_path) {
+		free(node);
+		return;
+	}
+
+	if (list->tail) {
+		list->tail->next = node;
+		node->prev = list->tail;
+		list->tail = node;
+	} else {
+		node->prev = NULL;
+		list->head = node;
+		list->tail = node;
+
+	}
+	list->count++;
+
 }
 
 void parse_include_directive(Preprocessor* preprocessor) {
@@ -84,7 +109,7 @@ void parse_include_directive(Preprocessor* preprocessor) {
 	// as preprocessor->start + 1 because preprocessor->start included < or " in file path
 	int length = preprocessor->end - (preprocessor->start + 1);
 	const char* file_path = strndup(preprocessor->start, length);
-	preprocessor->include_paths[preprocessor->include_path_count++] = strdup(file_path);
+	add_include_node(preprocessor->includes, file_path, start_pos )
 	free((void*)file_path);
 
 }
@@ -126,12 +151,12 @@ void parse_define_directive(Preprocessor* preprocessor) {
 	preprocessor->macros[preprocessor->macro_count].name = strdup(name);
 	if (c == '-' || isdigit(c)) {
 		int value = atoi(replacement_text);
-		preprocessor->macros[preprocessor->macro_count].u.value = value;
+		preprocessor->macros[preprocessor->macros->macro_count].u.value = value;
 	} else {
-		preprocessor->macros[preprocessor->macro_count].u.replacement = strdup(replacement_text);
+		preprocessor->macros[preprocessor->macros->macro_count].u.replacement = strdup(replacement_text);
 	}
 
-	preprocessor->macro_count++;
+	preprocessor->macros->macro_count++;
 
 	free(name);
 	free(replacement_text);
@@ -158,7 +183,7 @@ void number(Preprocessor* preprocessor) {
 	free(num_str);
 	
 }
-void identifier(Preprocessor* preprocessor) {
+void identifier(Preprocessor* preprocessor, size_t start_pos) {
 	if (isalpha(peek(preprocessor))) {
 		while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
 			advance(preprocessor);
@@ -171,7 +196,7 @@ void identifier(Preprocessor* preprocessor) {
 	if (strcmp(text, "#define") == 0) {
 		parse_define_directive(preprocessor);
 	} else if (strcmp(text, "#include") == 0) {
-		parse_include_directive(preprocessor);
+		parse_include_directive(preprocessor, start_pos);
 	}
 
 	free(text);
@@ -180,12 +205,14 @@ void identifier(Preprocessor* preprocessor) {
 
 void marker(Preprocessor* preprocessor) {
 	char c = advance(preprocessor);
+	size_t start_pos = 0;
 
 	switch (c) {
 		case '#':
 		case '<': 
 		case '"':
-			identifier(preprocessor);
+			start_pos = preprocessor->end;
+			identifier(preprocessor, start_pos);
 			break; 
 	}
 }
@@ -246,9 +273,7 @@ void write_to_source(char* source, char* contents) {
 
 void generator(Preprocessor* preprocessor, char* source) {
 	for (int i = 0; i < preprocessor->include_path_count; i++) {
-		char* file_path = preprocessor->include_paths[i];
-		char* contents = get_file_contents(file_path);
-		write_to_source(source, contents);
+
 	}
 }
 

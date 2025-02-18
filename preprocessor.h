@@ -10,6 +10,7 @@
 #define INCLUDE_PATHS 100
 
 typedef struct {
+	int macro_count;
 	char* name;
 	union {
 		char* replacement;
@@ -18,32 +19,49 @@ typedef struct {
 } Macro;
 
 typedef struct {
-	Macro* macros;
-	char** include_paths;
-	int include_path_count;
-	int macro_count;
+	char* file_path;
+	size_t placeholder_id;
+	size_t original_pos;
+	size_t end_pos;
+	size_t content_length;
 
+	struct IncludeNode* prev;
+	struct IncludeNode* next;
+} IncludeNode;
+
+typedef struct {
+	IncludeNode* head;
+	IncludeNode* tail;
+	size_t count;
+} IncludeList;
+
+typedef struct {
 	int line;
 	int column;
 
 	char* start;
 	char* end;
 	char* output;
+
+	IncludeList* includes;
+	Macro* macros;
 } Preprocessor;
 
+
+void add_include_node(IncludeList* list, char* file_path, size_t original_pos);
 
 // macro functionality
 char* macro_lookup(char* name);
 void macro_bind(char* name, char* replacement);
 
 void parse_define_directive(Preprocessor* preprocessor);
-void parse_include_directive(Preprocessor* preprocesor);
+void parse_include_directive(Preprocessor* preprocesor, size_t start_pos);
 
 char advance(Preprocessor* preprocessor);
 char peek(Preprocessor* preprocessor);
 char peek_next(Preprocessor* preprocessor);
 
-void identifier(Preprocessor* preprocessor);
+void identifier(Preprocessor* preprocessor, size_t start_pos);
 void marker(Preprocessor* preprocessor);
 void number(Preprocessor* preprocessor);
 
