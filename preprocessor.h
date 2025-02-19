@@ -9,7 +9,7 @@
 #define MACRO_COUNT 100
 #define INCLUDE_PATHS 100
 
-typedef struct {
+struct IncludeNode {
 	char* file_path;
 	size_t placeholder_id;
 	size_t original_pos;
@@ -18,11 +18,11 @@ typedef struct {
 
 	struct IncludeNode* prev;
 	struct IncludeNode* next;
-} IncludeNode;
+};
 
 typedef struct {
-	IncludeNode* head;
-	IncludeNode* tail;
+	struct IncludeNode* head;
+	struct IncludeNode* tail;
 	size_t include_count;
 } IncludeList;
 
@@ -33,7 +33,6 @@ typedef struct {
 		int value;
 	} u;
 
-	struct Macro* next;
 } Macro;
 
 typedef struct {
@@ -58,8 +57,9 @@ typedef struct {
 void add_include_node(IncludeList* list, char* file_path, size_t original_pos);
 void add_int_macro_node(MacroList* list, char* name, int value);
 void add_string_macro_node(MacroList* list, char* name, char* replacement);
+
 // macro functionality
-char* macro_lookup(char* name);
+bool macro_exists(MacroList* macros, const char* name);
 void macro_bind(char* name, char* replacement);
 
 void parse_define_directive(Preprocessor* preprocessor);
@@ -76,9 +76,12 @@ void number(Preprocessor* preprocessor);
 // writer code from #include directive to file
 long get_file_size(FILE* file);
 char* get_file_contents(char* source);
-void write_to_source(char* source, char* contents);
+void update_subsequent_positions(IncludeNode* node, size_t shift);
+void write_to_source(char* source, char* contents, size_t pos);
 void generator(Preprocessor* preprocessor, char* source);
 
+void init_macrolist(Preprocessor* preprocessor);
+void init_includelist(Preprocessor* preprocessor);
 Preprocessor* init_preprocessor(char* source);
 Preprocessor* preprocess(char* source);
 

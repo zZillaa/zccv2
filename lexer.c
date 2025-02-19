@@ -1,5 +1,5 @@
 #include "lexer.h"
-#define NUM_KEYWORDS 10
+#define NUM_KEYWORDS 9
 
 const char* keywords[] = {"int", "char", "boolean", "if", "else", "for", "while", "return", "void", "struct",
                     "break", "continue"};

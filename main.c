@@ -8,67 +8,20 @@
 // #include "ast.h"
 // #include "codegen.h"
 
-long get_file_size(FILE* file) {
-    fpos_t posIndicator;
-    if (fgetpos(file, &posIndicator) != 0) {
-        fprintf(stderr, "fgetpos() failed\n");
-        exit(EXIT_FAILURE);
-    }
-
-    fseek(file, 0, SEEK_END);
-    long file_size = ftell(file);
-    
-    if (fsetpos(file, &posIndicator) != 0) {
-        fprintf(stderr, "fsetpos() failed\n");
-        exit(EXIT_FAILURE);
-    }
-
-    return file_size;
-}
-
-char* get_file_contents(const char* file_path) {
-    FILE* file = fopen(file_path, "rb");
-    if (!file) {
-        perror("Error opening file");
-        exit(EXIT_FAILURE);
-    }
-
-    long file_size = get_file_size(file);
-    char* contents = malloc(file_size + 1);
-    char* writeIt = contents;
-
-    size_t bytes_read = 0;
-    while (bytes_read < file_size) {
-        size_t curr_bytes_read = fread(writeIt, 1, file_size - bytes_read, file);
-        bytes_read += curr_bytes_read;
-        writeIt += curr_bytes_read;
-
-        if (feof(file)) { break; }
-    }
-
-    if (bytes_read < file_size) {
-        printf("Bytes read: %zu\nFile size: %li\n", bytes_read, file_size);
-        free(contents);
-        exit(EXIT_FAILURE);
-    }
-    contents[bytes_read] ='\0';
-    fclose(file);
-
-    return contents;
-
-}
-
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     if (argc != 2) {
         printf("Error: expected two arguments\n");
         return EXIT_FAILURE;
     }
 
-    const char* file_path = argv[1];
+    char* file_path = argv[1];
     char* contents = get_file_contents(file_path);
     if (contents != NULL) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
         Preprocessor* preprocessor = preprocess(contents);
+        if (preprocessor->output) {
+            printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->output);
+        }
         // Token* tokens = lexical_analysis(processed_output);
         // print_tokens(tokens);
         
