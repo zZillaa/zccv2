@@ -19,8 +19,8 @@ int main(int argc, char** argv) {
     if (contents != NULL) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
         Preprocessor* preprocessor = preprocess(contents);
-        if (preprocessor->output) {
-            printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->output);
+        if (preprocessor->processed_source) {
+            printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->processed_source);
         }
         // Token* tokens = lexical_analysis(processed_output);
         // print_tokens(tokens);

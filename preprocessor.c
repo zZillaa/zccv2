@@ -240,7 +240,6 @@ void number(Preprocessor* preprocessor) {
 	
 }
 void identifier(Preprocessor* preprocessor, size_t start_pos) {
-
 	if (isalpha(peek(preprocessor))) {
 		while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
 			advance(preprocessor);
@@ -323,24 +322,16 @@ char* get_file_contents(char* file_path) {
 
 }
 
-// void update_subsequent_positions(IncludeNode* node, size_t shift) {}
+void update_subsequent_positions(IncludeNode* node, size_t shift) {}
 
-// void write_to_source(char* source, char* file_path, size_t pos) {
-// 	char* contents = get_file_contents(file_path);
-// 	size_t contents_length = strlen(contents);
+void write_to_source(Preprocessor* preprocessor, char* source, char* file_path, size_t pos) {
+
 	
-	
+}
 
+void generator(Preprocessor* preprocessor, char* source) {
 
-// }
-
-// void generator(Preprocessor* preprocessor, char* source) {
-// 	IncludeNode* current = preprocessor->includes->head;
-// 	while (current) {
-// 		write_to_source(source, current->file_path, current->original_pos);
-// 		current = current->next;
-// 	}
-// }
+}
 
 Preprocessor* preprocess(char* source) {
 	Preprocessor* preprocessor = init_preprocessor(source);
@@ -367,7 +358,7 @@ Preprocessor* preprocess(char* source) {
 	}
 
 	// second pass to include code from #include directives
-	// generator(preprocessor, source);
+	generator(preprocessor, source);
 
 	return preprocessor;
 }
