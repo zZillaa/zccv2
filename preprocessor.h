@@ -82,7 +82,11 @@ void number(Preprocessor* preprocessor);
 long get_file_size(FILE* file);
 char* get_file_contents(char* source);
 void update_subsequent_positions(struct IncludeNode* node, size_t shift);
+<<<<<<< HEAD
 void write_to_source(Preprocessor* preprocessor, char* source, char* contents, size_t pos);
+=======
+void write_to_source(char* source, char* contents, size_t pos);
+>>>>>>> a083e2b370f36915663ca61c7aaad4de4a6e583e
 void generator(Preprocessor* preprocessor, char* source);
 
 void init_macrolist(Preprocessor* preprocessor);
