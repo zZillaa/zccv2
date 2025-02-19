@@ -50,7 +50,7 @@ char peek_next(Preprocessor* preprocessor) {
 	return *(preprocessor->end + 1);
 }
 
-void add_include_node(IncludeList* list, char* file_path, long start_pos, long end_pos) {
+void add_include_node(IncludeList* list, char* file_path, size_t start_pos, size_t end_pos) {
 	struct IncludeNode* node = malloc(sizeof(struct IncludeNode));
 	if (!node) return;
 
@@ -166,33 +166,33 @@ void add_int_macro_node(MacroList* macros, char* name, int value) {
 }
 
 void parse_define_directive(Preprocessor* preprocessor) {
-	while (isspace(peek(preprocessor->file))) {
-		advance(preprocessor->file);
+	while (isspace(peek(preprocessor))) {
+		advance(preprocessor);
 	}
 
 	preprocessor->start = preprocessor->end;
-	if (!isalpha(peek(preprocessor->file))) return;
+	if (!isalpha(peek(preprocessor))) return;
 
-	while (isalnum(peek(preprocessor->file)) || peek(preprocessor->file) == '_') {
-		advance(preprocessor->file);
+	while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
+		advance(preprocessor);
 	}
 
 	int length = preprocessor->end - preprocessor->start;
 	char* name = strndup(preprocessor->start, length);
 
-	while (isspace(peek(preprocessor->file))) {
-		advance(preprocessor->file);
+	while (isspace(peek(preprocessor))) {
+		advance(preprocessor);
 	} 
 
 	preprocessor->start = preprocessor->end;
-	if (!isalnum(peek(preprocessor->file)) || peek(preprocessor->file) != '-') return;
+	if (!isalnum(peek(preprocessor)) || peek(preprocessor) != '-') return;
 
-	char c = peek(preprocessor->file);
+	char c = peek(preprocessor);
 	if (c == '-') {
-		number(preprocessor->file);
+		number(preprocessor);
 	} else {
 		while (*preprocessor->end != '\n' && *preprocessor->end != '\0') {
-			advance(preprocessor->file);
+			advance(preprocessor);
 		}
 	}
 
@@ -220,11 +220,11 @@ void number(Preprocessor* preprocessor) {
 	bool isNegative = false;
 	if (*preprocessor->start == '-') {
 		isNegative = true;
-		advance(preprocessor->file);
+		advance(preprocessor);
 	}
 
-	while (isdigit(peek(preprocessor->file))) {
-		advance(preprocessor->file);
+	while (isdigit(peek(preprocessor))) {
+		advance(preprocessor);
 	}
 
 	int length = preprocessor->end - preprocessor->start;
@@ -236,9 +236,9 @@ void number(Preprocessor* preprocessor) {
 	
 }
 void identifier(Preprocessor* preprocessor, size_t start_pos) {
-	if (isalpha(peek(file))) {
-		while (isalnum(peek(file)) || peek(file) == '_') {
-			advance(file);
+	if (isalpha(peek(preprocessor))) {
+		while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
+			advance(preprocessor);
 		}
 	} 
 
@@ -257,13 +257,13 @@ void identifier(Preprocessor* preprocessor, size_t start_pos) {
 
 void marker(Preprocessor* preprocessor) {
 	size_t start_pos = preprocessor->end;
-	char c = advance(file);
+	char c = advance(preprocessor);
 
 	switch (c) {
 		case '#':
 		case '<': 
 		case '"':
-			identifier(file, start_pos);
+			identifier(preprocessor, start_pos);
 			break; 
 	}
 }
@@ -318,7 +318,7 @@ char* get_file_contents(char* file_path) {
 
 }
 
-void update_subsequent_positions(IncludeNode* node, char* curr_file_path) {
+void update_subsequent_positions(struct IncludeNode* node, char* curr_file_path) {
 	size_t include_length = strlen(curr_file_path);
 	node->start_pos += include_length;
 	node->end_pos += include_length;
@@ -342,12 +342,13 @@ void write_to_source(Preprocessor* preprocessor, char* original_file_path, char*
 
 	new_content[new_size] = '\0';		
 
-	preprocessor->file = fopen(, "w+");
-	fseek(file, start_pos, SEEK_SET);
-	fwrite(new_content, 1, new_size, file);
+	preprocessor->file = fopen(original_file_path, "w+");
+	if (!preprocessor->file) return;
+
+	fseek(preprocessor->file, start_pos, SEEK_SET);
+	fwrite(new_content, 1, new_size, preprocessor->file);
 
 	free(include_contents);
-	free(remaining_contents);
 	free(new_content);
 
 }
@@ -387,7 +388,7 @@ Preprocessor* preprocess(char* original_file_path, char* source)  {
 	}
 
 	generator(preprocessor, original_file_path, source);
-
+	fclose(preprocessor->file);
 	return preprocessor;
 
 }

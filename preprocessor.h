@@ -12,7 +12,6 @@
 
 struct IncludeNode {
 	char* file_path;
-	size_t placeholder_id;
 	size_t start_pos;
 	size_t end_pos;
 	size_t content_length;
@@ -56,7 +55,7 @@ typedef struct {
 } Preprocessor;
 
 
-void add_include_node(IncludeList* list, char* file_path, size_t original_pos);
+void add_include_node(IncludeList* list, char* file_path, size_t start_pos, size_t end_pos);
 void add_int_macro_node(MacroList* list, char* name, int value);
 void add_string_macro_node(MacroList* list, char* name, char* replacement);
 
@@ -64,7 +63,7 @@ void add_string_macro_node(MacroList* list, char* name, char* replacement);
 bool macro_exists(MacroList* macros, char* name);
 
 void parse_define_directive(Preprocessor* preprocessor);
-void parse_include_directive(Preprocessor* preprocessor, size_t start_pos, size_t end_pos);
+void parse_include_directive(Preprocessor* preprocessor, size_t start_pos);
 
 char advance(Preprocessor* preprocessor);
 char peek(Preprocessor* preprocessor);
@@ -80,7 +79,7 @@ char* get_file_contents(char* source);
 void update_subsequent_positions(struct IncludeNode* node, char* file_path);
 void write_to_source(Preprocessor* preprocessor, char* original_file_path, char* source, char* includes_file_path, size_t start_pos, size_t end_pos);
 void grab_include_contents(Preprocessor* preprocessor, char* source);
-void generator(Preprocessor* preprocessor, char* source);
+void generator(Preprocessor* preprocessor, char* original_file_path, char* source);
 
 void init_macrolist(Preprocessor* preprocessor);
 void init_includelist(Preprocessor* preprocessor);
