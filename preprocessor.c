@@ -26,9 +26,9 @@ Preprocessor* init_preprocessor(char* source) {
 	
 	preprocessor->line = 1;
 	preprocessor->column = 1;
+	preprocessor->output = NULL;
 	preprocessor->start = source;
 	preprocessor->end = source;
-	preprocessor->output = NULL;
 
 	init_macrolist(preprocessor);
 	init_includelist(preprocessor);
@@ -50,17 +50,12 @@ char peek_next(Preprocessor* preprocessor) {
 	return *(preprocessor->end + 1);
 }
 
-bool match(Preprocessor* preprocessor, char expected) {
-	if (peek(preprocessor) != expected) return false;
-	advance(preprocessor);
-	return true;
-}
-
-void add_include_node(IncludeList* list, char* file_path, size_t original_pos) {
+void add_include_node(IncludeList* list, char* file_path, long start_pos, long end_pos) {
 	struct IncludeNode* node = malloc(sizeof(struct IncludeNode));
 	if (!node) return;
 
-	node->original_pos = original_pos;
+	node->start_pos = start_pos;
+	node->end_pos = end_pos;
 	node->next = NULL;
 	node->file_path = strdup(file_path);
 	if (!node->file_path) {
@@ -113,10 +108,11 @@ void parse_include_directive(Preprocessor* preprocessor, size_t start_pos) {
 		}
 
 	}
-	
+
+	size_t end_pos = preprocessor->end - 1;
 	int length = preprocessor->end - preprocessor->start - 2;
 	char* file_path = strndup(preprocessor->start + 1, length);
-	add_include_node(preprocessor->includes, file_path, start_pos);
+	add_include_node(preprocessor->includes, file_path, start_pos, end_pos);
 	free((void*)file_path);
 
 }
@@ -170,33 +166,33 @@ void add_int_macro_node(MacroList* macros, char* name, int value) {
 }
 
 void parse_define_directive(Preprocessor* preprocessor) {
-	while (isspace(peek(preprocessor))) {
-		advance(preprocessor);
+	while (isspace(peek(preprocessor->file))) {
+		advance(preprocessor->file);
 	}
 
 	preprocessor->start = preprocessor->end;
-	if (!isalpha(peek(preprocessor))) return;
+	if (!isalpha(peek(preprocessor->file))) return;
 
-	while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
-		advance(preprocessor);
+	while (isalnum(peek(preprocessor->file)) || peek(preprocessor->file) == '_') {
+		advance(preprocessor->file);
 	}
 
 	int length = preprocessor->end - preprocessor->start;
 	char* name = strndup(preprocessor->start, length);
 
-	while (isspace(peek(preprocessor))) {
-		advance(preprocessor);
+	while (isspace(peek(preprocessor->file))) {
+		advance(preprocessor->file);
 	} 
 
 	preprocessor->start = preprocessor->end;
-	if (!isalnum(peek(preprocessor)) || peek(preprocessor) != '-') return;
+	if (!isalnum(peek(preprocessor->file)) || peek(preprocessor->file) != '-') return;
 
-	char c = peek(preprocessor);
+	char c = peek(preprocessor->file);
 	if (c == '-') {
-		number(preprocessor);
+		number(preprocessor->file);
 	} else {
 		while (*preprocessor->end != '\n' && *preprocessor->end != '\0') {
-			advance(preprocessor);
+			advance(preprocessor->file);
 		}
 	}
 
@@ -224,11 +220,11 @@ void number(Preprocessor* preprocessor) {
 	bool isNegative = false;
 	if (*preprocessor->start == '-') {
 		isNegative = true;
-		advance(preprocessor);
+		advance(preprocessor->file);
 	}
 
-	while (isdigit(peek(preprocessor))) {
-		advance(preprocessor);
+	while (isdigit(peek(preprocessor->file))) {
+		advance(preprocessor->file);
 	}
 
 	int length = preprocessor->end - preprocessor->start;
@@ -240,9 +236,9 @@ void number(Preprocessor* preprocessor) {
 	
 }
 void identifier(Preprocessor* preprocessor, size_t start_pos) {
-	if (isalpha(peek(preprocessor))) {
-		while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
-			advance(preprocessor);
+	if (isalpha(peek(file))) {
+		while (isalnum(peek(file)) || peek(file) == '_') {
+			advance(file);
 		}
 	} 
 
@@ -260,14 +256,14 @@ void identifier(Preprocessor* preprocessor, size_t start_pos) {
 }
 
 void marker(Preprocessor* preprocessor) {
-	char c = advance(preprocessor);
-	size_t start_pos = preprocessor->end - preprocessor->start;
+	size_t start_pos = preprocessor->end;
+	char c = advance(file);
 
 	switch (c) {
 		case '#':
 		case '<': 
 		case '"':
-			identifier(preprocessor, start_pos);
+			identifier(file, start_pos);
 			break; 
 	}
 }
@@ -322,46 +318,80 @@ char* get_file_contents(char* file_path) {
 
 }
 
-void update_subsequent_positions(IncludeNode* node, size_t shift) {}
-
-void write_to_source(Preprocessor* preprocessor, char* source, char* file_path, size_t pos) {
-
-	
+void update_subsequent_positions(IncludeNode* node, char* curr_file_path) {
+	size_t include_length = strlen(curr_file_path);
+	node->start_pos += include_length;
+	node->end_pos += include_length;
 }
 
-void generator(Preprocessor* preprocessor, char* source) {
+void write_to_source(Preprocessor* preprocessor, char* original_file_path, char* source, char* includes_file_path, size_t start_pos, size_t end_pos) {
+	char* include_contents = get_file_contents(includes_file_path);
+	size_t include_length = strlen(include_contents);
+
+	size_t source_length = strlen(source);
+	size_t new_size = include_length + source_length;
+	char* new_content = malloc(new_size + 1);
+
+	memcpy(new_content, include_contents, include_length);
+
+	memmove(
+		new_content + include_length,
+		source,
+		source_length
+	);
+
+	new_content[new_size] = '\0';		
+
+	preprocessor->file = fopen(, "w+");
+	fseek(file, start_pos, SEEK_SET);
+	fwrite(new_content, 1, new_size, file);
+
+	free(include_contents);
+	free(remaining_contents);
+	free(new_content);
 
 }
 
-Preprocessor* preprocess(char* source) {
+void generator(Preprocessor* preprocessor, char* original_file_path, char* source) {
+	struct IncludeNode* current = preprocessor->includes->head;
+	while (current) {
+		write_to_source(preprocessor, original_file_path, source, current->file_path,
+			current->start_pos, current->end_pos);
+
+		update_subsequent_positions(current->next, current->file_path);
+		current = current->next;
+	}
+}
+
+Preprocessor* preprocess(char* original_file_path, char* source)  {
 	Preprocessor* preprocessor = init_preprocessor(source);
-	// first pass to get directives and their corresponding strings
+	
 	while (*preprocessor->end != '\0') {
 		char c = peek(preprocessor);
 
 		if (isspace(c)) {
 			if (c == '\n') {
 				preprocessor->line++;
-				preprocessor->column++;
+				preprocessor->column = 1;
 			}
 			advance(preprocessor);
-			continue;
+
 		}
 
-		preprocessor->start = preprocessor->end;
-	
-		if (isdigit(c) || (c == '_' && isdigit(peek_next(preprocessor)))) {
+		if (isdigit(c) || (c == '-' && isdigit(peek_next(preprocessor)))) {
 			number(preprocessor);
-		} else if (strchr("#<>\"", c)) {
+		} else if (strchr("#<>\"",c)) {
 			marker(preprocessor);
 		}
+
 	}
 
-	// second pass to include code from #include directives
-	generator(preprocessor, source);
+	generator(preprocessor, original_file_path, source);
 
 	return preprocessor;
+
 }
+
 
 void free_macro(Macro macro) {
 	free(macro.name);

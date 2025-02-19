@@ -13,7 +13,7 @@
 struct IncludeNode {
 	char* file_path;
 	size_t placeholder_id;
-	size_t original_pos;
+	size_t start_pos;
 	size_t end_pos;
 	size_t content_length;
 
@@ -43,10 +43,7 @@ typedef struct {
 } MacroList;
 
 typedef struct {
-	char* processed_source;
-	size_t source_capacity;
-	size_t source_length;
-
+	FILE* file; // going to reopn initial file to writer included content back 
 	int line;
 	int column;
 
@@ -65,10 +62,9 @@ void add_string_macro_node(MacroList* list, char* name, char* replacement);
 
 // macro functionality
 bool macro_exists(MacroList* macros, char* name);
-void macro_bind(char* name, char* replacement);
 
 void parse_define_directive(Preprocessor* preprocessor);
-void parse_include_directive(Preprocessor* preprocesor, size_t start_pos);
+void parse_include_directive(Preprocessor* preprocessor, size_t start_pos, size_t end_pos);
 
 char advance(Preprocessor* preprocessor);
 char peek(Preprocessor* preprocessor);
@@ -81,18 +77,15 @@ void number(Preprocessor* preprocessor);
 // writer code from #include directive to file
 long get_file_size(FILE* file);
 char* get_file_contents(char* source);
-void update_subsequent_positions(struct IncludeNode* node, size_t shift);
-<<<<<<< HEAD
-void write_to_source(Preprocessor* preprocessor, char* source, char* contents, size_t pos);
-=======
-void write_to_source(char* source, char* contents, size_t pos);
->>>>>>> a083e2b370f36915663ca61c7aaad4de4a6e583e
+void update_subsequent_positions(struct IncludeNode* node, char* file_path);
+void write_to_source(Preprocessor* preprocessor, char* original_file_path, char* source, char* includes_file_path, size_t start_pos, size_t end_pos);
+void grab_include_contents(Preprocessor* preprocessor, char* source);
 void generator(Preprocessor* preprocessor, char* source);
 
 void init_macrolist(Preprocessor* preprocessor);
 void init_includelist(Preprocessor* preprocessor);
-Preprocessor* init_preprocessor(char* source);
-Preprocessor* preprocess(char* source);
+Preprocessor* init_preprocessor();
+Preprocessor* preprocess(char* original_file_path, char* source);
 
 void free_macro(Macro macro);
 void free_preprocessor(Preprocessor* preprocessor);
