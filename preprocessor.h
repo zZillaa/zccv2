@@ -59,7 +59,7 @@ void add_int_macro_node(MacroList* list, char* name, int value);
 void add_string_macro_node(MacroList* list, char* name, char* replacement);
 
 // macro functionality
-bool macro_exists(MacroList* macros, const char* name);
+bool macro_exists(MacroList* macros, char* name);
 void macro_bind(char* name, char* replacement);
 
 void parse_define_directive(Preprocessor* preprocessor);
@@ -76,7 +76,7 @@ void number(Preprocessor* preprocessor);
 // writer code from #include directive to file
 long get_file_size(FILE* file);
 char* get_file_contents(char* source);
-void update_subsequent_positions(IncludeNode* node, size_t shift);
+void update_subsequent_positions(struct IncludeNode* node, size_t shift);
 void write_to_source(char* source, char* contents, size_t pos);
 void generator(Preprocessor* preprocessor, char* source);
 
