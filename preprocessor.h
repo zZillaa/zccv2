@@ -65,8 +65,11 @@ typedef struct {
 	MacroList* macros;
 } Preprocessor;
 
+<<<<<<< HEAD
 
 <<<<<<< HEAD
+=======
+>>>>>>> echo
 // macro functionality
 bool is_at_end(Preprocessor* preprocessor);
 bool is_at_character(Preprocessor* preprocessor, char c);
@@ -75,6 +78,7 @@ char* get_identifier(Preprocessor* preprocessor);
 int get_number(Preprocessor* preprocessor);
 void parse_define(Preprocessor* preprocessor);
 void parse_include(Preprocessor* preprocessor, int start_pos);
+<<<<<<< HEAD
 void add_include(MacroList* list, char* name, int value);
 =======
 void add_include_node(IncludeList* list, char* file_path, size_t start_pos, size_t end_pos);
@@ -87,6 +91,9 @@ bool macro_exists(MacroList* macros, char* name);
 void parse_define_directive(Preprocessor* preprocessor);
 void parse_include_directive(Preprocessor* preprocessor, size_t start_pos);
 >>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
+=======
+void add_include(IncludeList* list, char* file_path, int start_pos);
+>>>>>>> echo
 
 char advance(Preprocessor* preprocessor);
 char peek(Preprocessor* preprocessor);
@@ -97,6 +104,7 @@ void skip_whitespace(Preprocessor* preprocessor);
 bool macro_exists(MacroList* macros, char* name);
 void add_macro(IncludeList* list, char* file_path, int start_pos);
 int find_macro_replacement(MacroList* macros, const char* name);
+void add_macro(MacroList* list, char* name, int value);
 void replace_macros(Preprocessor* preprocessor);
 void add_macro(MacroList* macros, const char* name, const char* value);
 
@@ -117,5 +125,4 @@ Preprocessor* init_preprocessor();
 Preprocessor* preprocess(char* original_file_path, char* source);
 
 void free_preprocessor(Preprocessor* preprocessor);
-
 #endif
