@@ -4,6 +4,12 @@ void init_macrolist(Preprocessor* preprocessor) {
 	preprocessor->macros = malloc(sizeof(Macro) * MACRO_COUNT);
 	if (!preprocessor->macros) return;
 
+	preprocessor->macros->macro = malloc(sizeof(Macro) * MACRO_COUNT);
+	if (!preprocessor->macros->macro) {
+		free(preprocessor->macros);
+		return;
+	}
+
 	preprocessor->macros->macro_count = 0;
 	preprocessor->macros->macro_capacity = MACRO_COUNT;
 }
@@ -28,7 +34,7 @@ Preprocessor* init_preprocessor(char* source) {
 	preprocessor->column = 1;
 	preprocessor->start = source;
 	preprocessor->end = source;
-	preprocessor->output = NULL;
+	preprocessor->output = strdup(source);
 
 	init_macrolist(preprocessor);
 	init_includelist(preprocessor);
@@ -36,17 +42,24 @@ Preprocessor* init_preprocessor(char* source) {
 	return preprocessor;
 }
 
+bool is_at_end(Preprocessor* preprocessor) {
+    return *preprocessor->end == '\0';
+}
+
 char advance(Preprocessor* preprocessor) {
+    if (is_at_end(preprocessor)) return '\0';
 	preprocessor->column++;
-	return *preprocessor->end;
+    preprocessor->current_pos++;
+	return *preprocessor->end++;
 }
 
 char peek(Preprocessor* preprocessor) {
+    if (is_at_end(preprocessor)) return '\0';
 	return *preprocessor->end;
 }
 
 char peek_next(Preprocessor* preprocessor) {
-	if (*preprocessor->end == '\0') return '\0';
+	if (is_at_end(preprocessor) || *(preprocessor->end + 1) == '\0') return '\0';
 	return *(preprocessor->end + 1);
 }
 
@@ -56,11 +69,11 @@ bool match(Preprocessor* preprocessor, char expected) {
 	return true;
 }
 
-void add_include_node(IncludeList* list, char* file_path, size_t original_pos) {
+void add_include(IncludeList* list, char* file_path, int start_pos) {
 	struct IncludeNode* node = malloc(sizeof(struct IncludeNode));
 	if (!node) return;
 
-	node->original_pos = original_pos;
+	node->start_pos = start_pos;
 	node->next = NULL;
 	node->file_path = strdup(file_path);
 	if (!node->file_path) {
@@ -82,30 +95,29 @@ void add_include_node(IncludeList* list, char* file_path, size_t original_pos) {
 
 }
 
-void parse_include_directive(Preprocessor* preprocessor, size_t start_pos) {
+bool is_at_character(Preprocessor* preprocessor, char c) {
+    return *preprocessor->end == c;
+}
+
+void parse_include(Preprocessor* preprocessor, int start_pos) {
 	while (*preprocessor->end != '\n') {
 		char c = peek(preprocessor);
 
-		if (isspace(c)) {
-			advance(preprocessor);
-			continue;
-		}
+		skip_whitespace(preprocessor);
 
 		preprocessor->start = preprocessor->end;
 
 		switch (c) {
 			case '<':
-				while (*preprocessor->end != '>') {
+				while (!is_at_character(preprocessor, '<')) {
 					advance(preprocessor);
 				}
-				advance(preprocessor);
 				break;
 
 			case '"':
-				while (*preprocessor->end != '"') {
+				while (!is_at_character(preprocessor, '"')) {
 					advance(preprocessor);
 				}
-				advance(preprocessor);
 				break;
 
 			default:
@@ -114,9 +126,9 @@ void parse_include_directive(Preprocessor* preprocessor, size_t start_pos) {
 
 	}
 	
-	int length = preprocessor->end - preprocessor->start - 2;
+	int length = preprocessor->end - preprocessor->start - 1;
 	char* file_path = strndup(preprocessor->start + 1, length);
-	add_include_node(preprocessor->includes, file_path, start_pos);
+	add_include(preprocessor->includes, file_path, start_pos);
 	free((void*)file_path);
 
 }
@@ -130,26 +142,7 @@ bool macro_exists(MacroList* macros, char* name) {
 	return false;
 }
 
-void add_string_macro_node(MacroList* macros, char* name, char* replacement) {
-	Macro macro_node = {
-		.name = strdup(name),
-		.u.replacement = strdup(replacement),
-	};
-
-	if (macros->macro_count >= macros->macro_capacity) {
-		size_t new_capacity = macros->macro_capacity * 2;
-		Macro* new_macros = realloc(macros->macro, new_capacity * sizeof(Macro));
-		if (!macros) return;
-		macros->macro = new_macros;
-		macros->macro_capacity = new_capacity;
-
-		macros->macro[macros->macro_count++] = macro_node;
-	}
-
-	macros->macro[macros->macro_count++] = macro_node;
-}
-
-void add_int_macro_node(MacroList* macros, char* name, int value) {
+void add_macro(MacroList* macros, char* name, int value) {
 	Macro macro_node = {
 		.name = strdup(name),
 		.u.value = value,
@@ -159,68 +152,46 @@ void add_int_macro_node(MacroList* macros, char* name, int value) {
 		size_t new_capacity = macros->macro_capacity * 2;
 		Macro* new_macros = realloc(macros->macro, new_capacity * sizeof(Macro));
 		if (!macros) return;
+
 		macros->macro = new_macros;
 		macros->macro_capacity = new_capacity;
-
-		macros->macro[macros->macro_count++] = macro_node;
 	}
 
 	macros->macro[macros->macro_count++] = macro_node;
-
 }
 
-void parse_define_directive(Preprocessor* preprocessor) {
-	while (isspace(peek(preprocessor))) {
-		advance(preprocessor);
-	}
+char* get_identifier(Preprocessor* preprocessor) {
+    preprocessor->start = preprocessor->end;
+
+    while (!is_at_end(preprocessor) && (isalnum(peek(preprocessor)) || peek(preprocessor) == '_')) {
+        advance(preprocessor);
+    }
+
+    int length = preprocessor->end - preprocessor->start;
+    return strndup(preprocessor->start, length);
+}
+
+void parse_define(Preprocessor* preprocessor) {
+    skip_whitespace(preprocessor);
+
+	char* name = get_identifier(preprocessor);
+	if (!name) return;
+    
+    skip_whitespace(preprocessor);
 
 	preprocessor->start = preprocessor->end;
-	if (!isalpha(peek(preprocessor))) return;
-
-	while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
-		advance(preprocessor);
-	}
-
-	int length = preprocessor->end - preprocessor->start;
-	char* name = strndup(preprocessor->start, length);
-
-	while (isspace(peek(preprocessor))) {
-		advance(preprocessor);
-	} 
-
-	preprocessor->start = preprocessor->end;
-	if (!isalnum(peek(preprocessor)) || peek(preprocessor) != '-') return;
-
-	char c = peek(preprocessor);
-	if (c == '-') {
-		number(preprocessor);
-	} else {
-		while (*preprocessor->end != '\n' && *preprocessor->end != '\0') {
-			advance(preprocessor);
-		}
-	}
-
-	int replacement_length = preprocessor->end - preprocessor->start;
-	char* replacement_text = strndup(preprocessor->start, length);
-
-	if (c == '-' || isdigit(c)) {
-		int value = atoi(replacement_text);
-		if (!macro_exists(preprocessor->macros, name)) {
-			add_int_macro_node(preprocessor->macros, name, value);
-		}
-
-
-	} else {
-		if (!macro_exists(preprocessor->macros, name)) {
-			add_string_macro_node(preprocessor->macros, name, replacement_text);
-		}
-	}
-
+    char c = peek(preprocessor);
+    if (c != '-' || !isdigit(peek(preprocessor))) return;
+    
+    int value = get_number(preprocessor);
+    if (!macro_exists(preprocessor->macros, name)) {
+        add_macro(preprocessor->macros, name, value);
+    }
+		 
 	free(name);
-	free(replacement_text);
 }
 
-void number(Preprocessor* preprocessor) {
+int get_number(Preprocessor* preprocessor) {
 	bool isNegative = false;
 	if (*preprocessor->start == '-') {
 		isNegative = true;
@@ -231,45 +202,15 @@ void number(Preprocessor* preprocessor) {
 		advance(preprocessor);
 	}
 
-	int length = preprocessor->end - preprocessor->start;
+    // not consuming '-' as we have bool flag
+	int length = preprocessor->end - preprocessor->start + 1;
 	char* num_str = strndup(preprocessor->start, length);
 	int value = atoi(num_str);
 	if (isNegative) value = -value;
 
 	free(num_str);
-	
-}
-void identifier(Preprocessor* preprocessor, size_t start_pos) {
-	if (isalpha(peek(preprocessor))) {
-		while (isalnum(peek(preprocessor)) || peek(preprocessor) == '_') {
-			advance(preprocessor);
-		}
-	} 
 
-	int length = preprocessor->end - preprocessor->start;
-	char* text = strndup(preprocessor->start, length);
-	
-	if (strcmp(text, "#define") == 0) {
-		parse_define_directive(preprocessor);
-	} else if (strcmp(text, "#include") == 0) {
-		parse_include_directive(preprocessor, start_pos);
-	}
-
-	free(text);
-	
-}
-
-void marker(Preprocessor* preprocessor) {
-	char c = advance(preprocessor);
-	size_t start_pos = preprocessor->end - preprocessor->start;
-
-	switch (c) {
-		case '#':
-		case '<': 
-		case '"':
-			identifier(preprocessor, start_pos);
-			break; 
-	}
+    return value;
 }
 
 long get_file_size(FILE* file) {
@@ -322,69 +263,90 @@ char* get_file_contents(char* file_path) {
 
 }
 
-void update_subsequent_positions(IncludeNode* node, size_t shift) {}
-
-void write_to_source(Preprocessor* preprocessor, char* source, char* file_path, size_t pos) {
-
-	
-}
-
-void generator(Preprocessor* preprocessor, char* source) {
-
+void skip_whitespace(Preprocessor* preprocessor) {
+    while (!is_at_end(preprocessor) && isspace(peek(preprocessor))) {
+        if (peek(preprocessor) == '\n') {
+            preprocessor->line++;
+            preprocessor->column = 1;
+        }
+        advance(preprocessor);
+    }
 }
 
 Preprocessor* preprocess(char* source) {
 	Preprocessor* preprocessor = init_preprocessor(source);
-	// first pass to get directives and their corresponding strings
-	while (*preprocessor->end != '\0') {
-		char c = peek(preprocessor);
 
-		if (isspace(c)) {
-			if (c == '\n') {
-				preprocessor->line++;
-				preprocessor->column++;
-			}
-			advance(preprocessor);
-			continue;
-		}
+	while (!is_at_end(preprocessor)) {
+		skip_whitespace(preprocessor);
 
-		preprocessor->start = preprocessor->end;
-	
-		if (isdigit(c) || (c == '_' && isdigit(peek_next(preprocessor)))) {
-			number(preprocessor);
-		} else if (strchr("#<>\"", c)) {
-			marker(preprocessor);
-		}
+		if (is_at_end(preprocessor)) break;
+
+        if (peek(preprocessor) == '#') {
+            int include_pos = preprocessor->current_pos;
+            advance(preprocessor); 
+            
+            char* directive = get_identifier(preprocessor);
+            if (directive && strcmp(directive, "define") == 0) {
+                parse_define(preprocessor);
+            } else if (directive && strcmp(directive, "include") == 0) {
+                parse_include(preprocessor, include_pos);
+            }
+            free(directive);
+        } else {
+            advance(preprocessor);
+        }
 	}
-
-	// second pass to include code from #include directives
-	generator(preprocessor, source);
+	replace_macros(preprocessor);
 
 	return preprocessor;
-}
-
-void free_macro(Macro macro) {
-	free(macro.name);
-	free(macro.u.replacement);
 }
 
 void free_preprocessor(Preprocessor* preprocessor) {
 	if (!preprocessor) return;
 
-	for (size_t i = 0; i < preprocessor->macros->macro_count; i++) {
-		Macro temp = preprocessor->macros->macro[i];
-		free_macro(temp);
-	}
+    if (preprocessor->macros) {
+    	for (size_t i = 0; i < preprocessor->macros->macro_count; i++) {
+    		free(preprocessor->macros->macro[i].name);
+            free(preprocessor->macros->macro[i].u.replacement);
+    	} 
+        free(preprocessor->macros->macro);
+        free(preprocessor->macros);
+    }
 	
-	struct IncludeNode* current = preprocessor->includes->head;
-	while (current) {
-		struct IncludeNode* next = current->next;
-		free(current->file_path);
-		free(current);
-		current = next;
-	}
-
-	free(preprocessor->includes);
-	free(preprocessor->macros);
+	if (preprocessor->includes) {
+        struct IncludeNode* current = preprocessor->includes->head;
+    	while (current) {
+    		struct IncludeNode* next = current->next;
+    		free(current->file_path);
+    		free(current);
+    		current = next;
+    	}
+        free(preprocessor->includes);
+    }
 	free(preprocessor);
+}
+
+int find_macro_replacement(MacroList* macros, const char* name) {
+    for (size_t i = 0; i < macros->macro_count; i++) {
+        if (strcmp(macros->macro[i].name, name) == 0) {
+            return macros->macro[i].u.value;
+        }
+    }
+    return -1;
+}
+
+void replace_macros(Preprocessor* preprocessor) {
+    char* input = strdup(preprocessor->output);
+    if (!input) return;
+
+    size_t output_size = strlen(input) * 2;
+    char* output = malloc(output_size);
+    if (!output) {
+        free(input);
+        return;
+    }
+
+    char* current = ouptut;
+    char* input_ptr = input;
+
 }

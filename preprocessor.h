@@ -13,8 +13,8 @@
 struct IncludeNode {
 	char* file_path;
 	size_t placeholder_id;
-	size_t original_pos;
-	size_t end_pos;
+	int start_pos;
+	int end_pos;
 	size_t content_length;
 
 	struct IncludeNode* prev;
@@ -43,10 +43,6 @@ typedef struct {
 } MacroList;
 
 typedef struct {
-	char* processed_source;
-	size_t source_capacity;
-	size_t source_length;
-
 	int line;
 	int column;
 
@@ -54,46 +50,44 @@ typedef struct {
 	char* end;
 	char* output;
 
+	int current_pos;
+
 	IncludeList* includes;
 	MacroList* macros;
 } Preprocessor;
 
-
-void add_include_node(IncludeList* list, char* file_path, size_t original_pos);
-void add_int_macro_node(MacroList* list, char* name, int value);
-void add_string_macro_node(MacroList* list, char* name, char* replacement);
+void add_include_node(IncludeList* list, char* file_path, int start_pos);
+void add_macro_node(MacroList* list, char* name, int value);
 
 // macro functionality
-bool macro_exists(MacroList* macros, char* name);
-void macro_bind(char* name, char* replacement);
+bool is_at_end(Preprocessor* preprocessor);
+bool is_at_character(Preprocessor* preprocessor, char c);
 
-void parse_define_directive(Preprocessor* preprocessor);
-void parse_include_directive(Preprocessor* preprocesor, size_t start_pos);
+char* get_identifier(Preprocessor* preprocessor);
+int get_number(Preprocessor* preprocessor);
+void parse_define(Preprocessor* preprocessor);
+void parse_include(Preprocessor* preprocessor, int start_pos);
 
 char advance(Preprocessor* preprocessor);
 char peek(Preprocessor* preprocessor);
 char peek_next(Preprocessor* preprocessor);
+void skip_whitespace(Preprocessor* preprocessor);
 
-void identifier(Preprocessor* preprocessor, size_t start_pos);
-void marker(Preprocessor* preprocessor);
-void number(Preprocessor* preprocessor);
+
+bool macro_exists(MacroList* macros, char* name);
+int find_macro_replacement(MacroList* macros, const char* name);
+void replace_macros(Preprocessor* preprocessor);
+void add_macro(MacroList* macros, const char* name, const char* value);
 
 // writer code from #include directive to file
 long get_file_size(FILE* file);
 char* get_file_contents(char* source);
-void update_subsequent_positions(struct IncludeNode* node, size_t shift);
-<<<<<<< HEAD
-void write_to_source(Preprocessor* preprocessor, char* source, char* contents, size_t pos);
-=======
-void write_to_source(char* source, char* contents, size_t pos);
->>>>>>> a083e2b370f36915663ca61c7aaad4de4a6e583e
-void generator(Preprocessor* preprocessor, char* source);
 
 void init_macrolist(Preprocessor* preprocessor);
 void init_includelist(Preprocessor* preprocessor);
 Preprocessor* init_preprocessor(char* source);
 Preprocessor* preprocess(char* source);
 
-void free_macro(Macro macro);
 void free_preprocessor(Preprocessor* preprocessor);
+
 #endif
