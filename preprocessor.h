@@ -56,8 +56,6 @@ typedef struct {
 	MacroList* macros;
 } Preprocessor;
 
-void add_include_node(IncludeList* list, char* file_path, int start_pos);
-void add_macro_node(MacroList* list, char* name, int value);
 
 // macro functionality
 bool is_at_end(Preprocessor* preprocessor);
@@ -67,6 +65,7 @@ char* get_identifier(Preprocessor* preprocessor);
 int get_number(Preprocessor* preprocessor);
 void parse_define(Preprocessor* preprocessor);
 void parse_include(Preprocessor* preprocessor, int start_pos);
+void add_include(MacroList* list, char* name, int value);
 
 char advance(Preprocessor* preprocessor);
 char peek(Preprocessor* preprocessor);
@@ -75,6 +74,7 @@ void skip_whitespace(Preprocessor* preprocessor);
 
 
 bool macro_exists(MacroList* macros, char* name);
+void add_macro(IncludeList* list, char* file_path, int start_pos);
 int find_macro_replacement(MacroList* macros, const char* name);
 void replace_macros(Preprocessor* preprocessor);
 void add_macro(MacroList* macros, const char* name, const char* value);
