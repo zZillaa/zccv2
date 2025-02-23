@@ -15,13 +15,28 @@ int main(int argc, char** argv) {
     }
 
     char* file_path = argv[1];
+    // char* contents = get_file_contents(file_path);
+    // preprocessor opens up file.
     char* contents = get_file_contents(file_path);
+<<<<<<< HEAD
     if (contents != NULL) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
         Preprocessor* preprocessor = preprocess(contents);
         if (preprocessor->output) {
             printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->output);
         }
+=======
+    Preprocessor* preprocessor = preprocess(file_path, contents);
+    if (preprocessor->output) {
+        printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->output);
+    }
+    // if (contents) {
+        // printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
+        // Preprocessor* preprocessor = preprocess(contents);
+        // if (preprocessor->processed_source) {
+        //     printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->processed_source);
+        // }
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
         // Token* tokens = lexical_analysis(processed_output);
         // print_tokens(tokens);
         
@@ -43,9 +58,9 @@ int main(int argc, char** argv) {
         // free_stack(stack);
         // free_ast(ast);
         // free_tokens(tokens);
-        free_preprocessor(preprocessor);
-        free(contents);
-    }
+        // free_preprocessor(preprocessor);
+        // free(contents);
+    // }
 
     return EXIT_SUCCESS;
 }

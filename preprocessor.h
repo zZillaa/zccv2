@@ -12,9 +12,14 @@
 
 struct IncludeNode {
 	char* file_path;
+<<<<<<< HEAD
 	size_t placeholder_id;
 	int start_pos;
 	int end_pos;
+=======
+	size_t start_pos;
+	size_t end_pos;
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 	size_t content_length;
 
 	struct IncludeNode* prev;
@@ -43,6 +48,10 @@ typedef struct {
 } MacroList;
 
 typedef struct {
+<<<<<<< HEAD
+=======
+	FILE* file; // going to reopn initial file to writer included content back 
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 	int line;
 	int column;
 
@@ -57,6 +66,7 @@ typedef struct {
 } Preprocessor;
 
 
+<<<<<<< HEAD
 // macro functionality
 bool is_at_end(Preprocessor* preprocessor);
 bool is_at_character(Preprocessor* preprocessor, char c);
@@ -66,6 +76,17 @@ int get_number(Preprocessor* preprocessor);
 void parse_define(Preprocessor* preprocessor);
 void parse_include(Preprocessor* preprocessor, int start_pos);
 void add_include(MacroList* list, char* name, int value);
+=======
+void add_include_node(IncludeList* list, char* file_path, size_t start_pos, size_t end_pos);
+void add_int_macro_node(MacroList* list, char* name, int value);
+void add_string_macro_node(MacroList* list, char* name, char* replacement);
+
+// macro functionality
+bool macro_exists(MacroList* macros, char* name);
+
+void parse_define_directive(Preprocessor* preprocessor);
+void parse_include_directive(Preprocessor* preprocessor, size_t start_pos);
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 
 char advance(Preprocessor* preprocessor);
 char peek(Preprocessor* preprocessor);
@@ -82,11 +103,18 @@ void add_macro(MacroList* macros, const char* name, const char* value);
 // writer code from #include directive to file
 long get_file_size(FILE* file);
 char* get_file_contents(char* source);
+<<<<<<< HEAD
+=======
+void update_subsequent_positions(struct IncludeNode* node, char* file_path);
+void write_to_source(Preprocessor* preprocessor, char* original_file_path, char* source, char* includes_file_path, size_t start_pos, size_t end_pos);
+void grab_include_contents(Preprocessor* preprocessor, char* source);
+void generator(Preprocessor* preprocessor, char* original_file_path, char* source);
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 
 void init_macrolist(Preprocessor* preprocessor);
 void init_includelist(Preprocessor* preprocessor);
-Preprocessor* init_preprocessor(char* source);
-Preprocessor* preprocess(char* source);
+Preprocessor* init_preprocessor();
+Preprocessor* preprocess(char* original_file_path, char* source);
 
 void free_preprocessor(Preprocessor* preprocessor);
 

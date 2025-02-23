@@ -32,9 +32,13 @@ Preprocessor* init_preprocessor(char* source) {
 	
 	preprocessor->line = 1;
 	preprocessor->column = 1;
+	preprocessor->output = NULL;
 	preprocessor->start = source;
 	preprocessor->end = source;
+<<<<<<< HEAD
 	preprocessor->output = strdup(source);
+=======
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 
 	init_macrolist(preprocessor);
 	init_includelist(preprocessor);
@@ -63,6 +67,7 @@ char peek_next(Preprocessor* preprocessor) {
 	return *(preprocessor->end + 1);
 }
 
+<<<<<<< HEAD
 bool match(Preprocessor* preprocessor, char expected) {
 	if (peek(preprocessor) != expected) return false;
 	advance(preprocessor);
@@ -70,10 +75,17 @@ bool match(Preprocessor* preprocessor, char expected) {
 }
 
 void add_include(IncludeList* list, char* file_path, int start_pos) {
+=======
+void add_include_node(IncludeList* list, char* file_path, size_t start_pos, size_t end_pos) {
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 	struct IncludeNode* node = malloc(sizeof(struct IncludeNode));
 	if (!node) return;
 
 	node->start_pos = start_pos;
+<<<<<<< HEAD
+=======
+	node->end_pos = end_pos;
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 	node->next = NULL;
 	node->file_path = strdup(file_path);
 	if (!node->file_path) {
@@ -125,10 +137,18 @@ void parse_include(Preprocessor* preprocessor, int start_pos) {
 		}
 
 	}
+<<<<<<< HEAD
 	
 	int length = preprocessor->end - preprocessor->start - 1;
 	char* file_path = strndup(preprocessor->start + 1, length);
 	add_include(preprocessor->includes, file_path, start_pos);
+=======
+
+	size_t end_pos = preprocessor->end - 1;
+	int length = preprocessor->end - preprocessor->start - 2;
+	char* file_path = strndup(preprocessor->start + 1, length);
+	add_include_node(preprocessor->includes, file_path, start_pos, end_pos);
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 	free((void*)file_path);
 
 }
@@ -210,7 +230,34 @@ int get_number(Preprocessor* preprocessor) {
 
 	free(num_str);
 
+<<<<<<< HEAD
     return value;
+=======
+	int length = preprocessor->end - preprocessor->start;
+	char* text = strndup(preprocessor->start, length);
+	
+	if (strcmp(text, "#define") == 0) {
+		parse_define_directive(preprocessor);
+	} else if (strcmp(text, "#include") == 0) {
+		parse_include_directive(preprocessor, start_pos);
+	}
+
+	free(text);
+	
+}
+
+void marker(Preprocessor* preprocessor) {
+	size_t start_pos = preprocessor->end;
+	char c = advance(preprocessor);
+
+	switch (c) {
+		case '#':
+		case '<': 
+		case '"':
+			identifier(preprocessor, start_pos);
+			break; 
+	}
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 }
 
 long get_file_size(FILE* file) {
@@ -263,6 +310,7 @@ char* get_file_contents(char* file_path) {
 
 }
 
+<<<<<<< HEAD
 void skip_whitespace(Preprocessor* preprocessor) {
     while (!is_at_end(preprocessor) && isspace(peek(preprocessor))) {
         if (peek(preprocessor) == '\n') {
@@ -271,10 +319,57 @@ void skip_whitespace(Preprocessor* preprocessor) {
         }
         advance(preprocessor);
     }
+=======
+void update_subsequent_positions(struct IncludeNode* node, char* curr_file_path) {
+	size_t include_length = strlen(curr_file_path);
+	node->start_pos += include_length;
+	node->end_pos += include_length;
 }
 
-Preprocessor* preprocess(char* source) {
+void write_to_source(Preprocessor* preprocessor, char* original_file_path, char* source, char* includes_file_path, size_t start_pos, size_t end_pos) {
+	char* include_contents = get_file_contents(includes_file_path);
+	size_t include_length = strlen(include_contents);
+
+	size_t source_length = strlen(source);
+	size_t new_size = include_length + source_length;
+	char* new_content = malloc(new_size + 1);
+
+	memcpy(new_content, include_contents, include_length);
+
+	memmove(
+		new_content + include_length,
+		source,
+		source_length
+	);
+
+	new_content[new_size] = '\0';		
+
+	preprocessor->file = fopen(original_file_path, "w+");
+	if (!preprocessor->file) return;
+
+	fseek(preprocessor->file, start_pos, SEEK_SET);
+	fwrite(new_content, 1, new_size, preprocessor->file);
+
+	free(include_contents);
+	free(new_content);
+
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
+}
+
+void generator(Preprocessor* preprocessor, char* original_file_path, char* source) {
+	struct IncludeNode* current = preprocessor->includes->head;
+	while (current) {
+		write_to_source(preprocessor, original_file_path, source, current->file_path,
+			current->start_pos, current->end_pos);
+
+		update_subsequent_positions(current->next, current->file_path);
+		current = current->next;
+	}
+}
+
+Preprocessor* preprocess(char* original_file_path, char* source)  {
 	Preprocessor* preprocessor = init_preprocessor(source);
+<<<<<<< HEAD
 
 	while (!is_at_end(preprocessor)) {
 		skip_whitespace(preprocessor);
@@ -298,9 +393,44 @@ Preprocessor* preprocess(char* source) {
 	}
 	replace_macros(preprocessor);
 
+=======
+	
+	while (*preprocessor->end != '\0') {
+		char c = peek(preprocessor);
+
+		if (isspace(c)) {
+			if (c == '\n') {
+				preprocessor->line++;
+				preprocessor->column = 1;
+			}
+			advance(preprocessor);
+
+		}
+
+		if (isdigit(c) || (c == '-' && isdigit(peek_next(preprocessor)))) {
+			number(preprocessor);
+		} else if (strchr("#<>\"",c)) {
+			marker(preprocessor);
+		}
+
+	}
+
+	generator(preprocessor, original_file_path, source);
+	fclose(preprocessor->file);
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 	return preprocessor;
+
 }
 
+<<<<<<< HEAD
+=======
+
+void free_macro(Macro macro) {
+	free(macro.name);
+	free(macro.u.replacement);
+}
+
+>>>>>>> 8e0126cb350316c8a6962c814ab27d1140b47e05
 void free_preprocessor(Preprocessor* preprocessor) {
 	if (!preprocessor) return;
 
