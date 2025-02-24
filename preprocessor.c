@@ -286,7 +286,7 @@ Preprocessor* preprocess(char* source) {
         }
     }
     replace_macros(preprocessor);
-    // replace_includes(preprocessor);
+    replace_includes(preprocessor);
 
     return preprocessor;
 }
@@ -337,7 +337,7 @@ void replace_macros(Preprocessor* preprocessor) {
             if (strcmp(directive, "define") == 0 || strcmp(directive, "include") == 0) {
                 strncpy(write_pos, directive, directive_length);
                 write_pos += directive_length;
-                while (!is_at_character(preprocessor, '\n')) {
+                while (!is_at_end(preprocessor) && !is_at_character(preprocessor, '\n')) {
                     *write_pos = peek(preprocessor);
                     write_pos++;
                     advance(preprocessor);
@@ -369,28 +369,19 @@ void replace_macros(Preprocessor* preprocessor) {
     preprocessor->output = strdup(replace->contents);
 }
 
-IncludeReplace* init_include_replace(size_t input_length) {
-    IncludeReplace* replace = malloc(sizeof(IncludeReplace));
-    if (!replace) return NULL;
-
-    replace->contents = malloc(input_length * 4);
-    if (!replace->contents) {
-        printf("Why null?\n");
-        free(replace);
-        return NULL;
-    }
-
-    return replace;
-}
-
 void replace_includes(Preprocessor* preprocessor) {
     if (!preprocessor) return;
 
     char* input = strdup(preprocessor->output);
     if (!input) return;
     size_t input_length = strlen(input);
-    IncludeReplace* replace = init_include_replace(input_length);
-    char* write_pos = replace->contents;
+
+    char* write_pos = malloc(input_length * 4);
+    if (!write_pos) {
+        free(input);
+        return;
+    }
+    char* write_head = write_pos;
     
     preprocessor->start = preprocessor->output;
     preprocessor->end = preprocessor->output;
@@ -409,22 +400,30 @@ void replace_includes(Preprocessor* preprocessor) {
                 char* file_path = get_filepath(preprocessor);
                 char* file_contents = get_file_contents(file_path);
                 size_t file_length = strlen(file_contents);
-                size_t curr_length = strlen(write_pos);
+                size_t used_length = write_pos - write_head;
+                size_t allocated_length = input_length * 4;
 
-                if (file_length >= curr_length) {
-                    size_t new_length = 2 * file_length;
-                    write_pos = realloc(write_pos, new_length);
-                    if (!write_pos) return;
-                }
-
+                if (file_length + used_length >= allocated_length) {
+                    size_t new_length = 4 * (file_length + allocated_length + 1);
+                    char* new_write_pos = realloc(write_head, new_length);
+                    printf("Here i am\n");
+                    if (!new_write_pos) {
+                        free(file_contents);
+                        free(file_path);
+                        free(write_head);
+                        free(input);
+                        return;
+                    }
+                    write_pos = new_write_pos + used_length;
+                    write_head = new_write_pos;
+                    input_length = new_length / 4;
+                }               
                 strncpy(write_pos, file_contents, file_length);
                 write_pos += file_length;
-
+                free(file_contents);
                 free(file_path);
-
             } 
             free(directive);
-
         } else {
             *write_pos = peek(preprocessor);
             write_pos++;
@@ -432,8 +431,10 @@ void replace_includes(Preprocessor* preprocessor) {
         }
     }
 
-    write_pos = '\0';
-    preprocessor->output = strdup(replace->contents);
+    *write_pos = '\0';
+    preprocessor->output = strdup(write_head);
+    free(input);
+    free(write_head);
 }
 
 void free_preprocessor(Preprocessor* preprocessor) {

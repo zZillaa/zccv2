@@ -76,7 +76,6 @@ void skip_whitespace(Preprocessor* preprocessor);
 
 bool macro_exists(MacroList* macros, char* name);
 MacroReplace* init_macro_replace(size_t input_length);
-IncludeReplace* init_include_replace(size_t input_length);
 char* find_macro_replacement(MacroList* macros, const char* name);
 void replace_macros(Preprocessor* preprocessor);
 void add_macro(MacroList* macros, char* name, char* replacement);
