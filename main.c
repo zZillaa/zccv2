@@ -4,7 +4,7 @@
 #include <ctype.h>
 #include <string.h>
 #include "preprocessor.h"
-// #include "lexer.h"
+#include "lexer.h"
 // #include "ast.h"
 // #include "codegen.h"
 
@@ -15,26 +15,17 @@ int main(int argc, char** argv) {
     }
 
     char* file_path = argv[1];
-    // char* contents = get_file_contents(file_path);
-    // preprocessor opens up file.
     char* contents = get_file_contents(file_path);
 
-    if (contents != NULL) {
+    if (contents) {
         printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
         Preprocessor* preprocessor = preprocess(contents);
         if (preprocessor->output) {
             printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->output);
         }
 
-    // if (contents) {
-        // printf("Contents of %s\n---\n\"%s\"\n---\n", file_path, contents);
-        // Preprocessor* preprocessor = preprocess(contents);
-        // if (preprocessor->processed_source) {
-        //     printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->processed_source);
-        // }
-
-        // Token* tokens = lexical_analysis(processed_output);
-        // print_tokens(tokens);
+        Token* tokens = lexical_analysis(preprocessor->output);
+        print_tokens(tokens);
         
         // struct program* ast = build_ast(tokens);
         // print_ast(ast);
@@ -53,9 +44,9 @@ int main(int argc, char** argv) {
         // free_register_table(sregs);
         // free_stack(stack);
         // free_ast(ast);
-        // free_tokens(tokens);
-        // free_preprocessor(preprocessor);
-        // free(contents);
+        free_tokens(tokens);
+        free_preprocessor(preprocessor);
+        free(contents);
     }
 
     return EXIT_SUCCESS;

@@ -68,7 +68,7 @@ void parse_define(Preprocessor* preprocessor);
 void parse_include(Preprocessor* preprocessor, int start_pos);
 void add_include(IncludeList* list, char* file_path, int start_pos);
 
-char advance(Preprocessor* preprocessor);
+char advance_preprocessor(Preprocessor* preprocessor);
 char peek(Preprocessor* preprocessor);
 char peek_next(Preprocessor* preprocessor);
 void skip_whitespace(Preprocessor* preprocessor);

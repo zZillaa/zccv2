@@ -56,7 +56,7 @@ Token create_string_token(TokenType type, char* value, int line, int column) {
     return token;
 }
 
-Lexer* init_lexer(const char* source) {
+Lexer* init_lexer(char* source) {
     Lexer* lexer = malloc(sizeof(Lexer));
     if (!lexer) return NULL;
 
@@ -86,30 +86,32 @@ bool add_token(Lexer* lexer, Token token) {
     return true;
 }
 
-char advance(Lexer* lexer) {
+char advance_lexer(Lexer* lexer) {
+    if (lexer_at_end(lexer)) return '\0';
     lexer->column++;
     return *lexer->end++;
 }
 
-char peek(Lexer* lexer) {
+char peek_lexer(Lexer* lexer) {
+    if (lexer_at_end(lexer)) return '\0';
     return *lexer->end;
 } 
 
-char peek_next(Lexer* lexer) {
-    if (*(lexer->end) == '\0') return '\0';
+char peek_lexer_next(Lexer* lexer) {
+    if (lexer_at_end(lexer) || peek_lexer_next(lexer) == '\0') return '\0';
     return *(lexer->end + 1);
 }
 
 bool match(Lexer* lexer, char expected) {
-    if (peek(lexer) != expected) return false;
-    advance(lexer);
+    if (peek_lexer(lexer) != expected) return false;
+    advance_lexer(lexer);
     return true;
 }
 
 void identifier(Lexer* lexer) {
-    if (isalpha(peek(lexer))) {
-        while (isalnum(peek(lexer)) || peek(lexer) == '_') {
-            advance(lexer);
+    if (isalpha(peek_lexer(lexer))) {
+        while (isalnum(peek_lexer(lexer)) || peek_lexer(lexer) == '_') {
+            advance_lexer(lexer);
         }
     }
 
@@ -132,11 +134,11 @@ void number(Lexer* lexer) {
     bool isNegative = false;
     if (*lexer->start == '-') {
         isNegative = true;
-        advance(lexer);
+        advance_lexer(lexer);
     }
 
-    while (isdigit(peek(lexer))) {
-        advance(lexer);
+    while (isdigit(peek_lexer(lexer))) {
+        advance_lexer(lexer);
     }
 
     int length = lexer->end - lexer->start;
@@ -149,7 +151,7 @@ void number(Lexer* lexer) {
 }
 
 void operator(Lexer* lexer) {
-    char c = advance(lexer);
+    char c = advance_lexer(lexer);
     TokenType type = TOKEN_UNKNOWN;
     bool isCompound = false;
 
@@ -242,7 +244,7 @@ void operator(Lexer* lexer) {
 }
 
 void marker(Lexer* lexer) {
-    char c = advance(lexer);
+    char c = advance_lexer(lexer);
     TokenType type = TOKEN_UNKNOWN;
 
     switch (c) {
@@ -259,31 +261,36 @@ void marker(Lexer* lexer) {
     add_token(lexer, create_char_token(type, c, lexer->line, lexer->column - 1));
 }
 
+bool lexer_at_end(Lexer* lexer) {
+    return *lexer->end == '\0';
+}
+
+bool skip_lexer_whitespace(Lexer* lexer) {
+    while (!lexer_at_end(lexer) && isspace(peek_lexer(lexer))) {
+        if (*lexer->end == '\n') {
+            lexer->line++;
+            lexer->column = 1;
+        }
+        advance_lexer(lexer);
+    }
+}
+
 Token* lexical_analysis(char* source) {
     Lexer* lexer = init_lexer(source);
     if (!lexer) return NULL;
 
-    while (*lexer->end != '\0') {
-        char c = peek(lexer);
+    while (!lexer_at_end(lexer)) {
+        skip_lexer_whitespace(lexer);
 
-        if (isspace(c)) {
-            if (c == '\n') {
-                lexer->line++;
-                lexer->column = 1;
-            }
-            advance(lexer);
-            continue;
-        }
+        if (lexer_at_end(lexer)) break;
 
-        lexer->start = lexer->end;
-
-        if (isalpha(c)) {
+        if (isalpha(peek_lexer(lexer))) {
             identifier(lexer);
-        } else if (isdigit(c) || (c == '-' && isdigit(peek_next(lexer)))) {
+        } else if (isdigit(peek_lexer(lexer)) || (peek_lexer(lexer) == '-' && isdigit(peek_lexer_next(lexer)))) {
             number(lexer);
-        } else if (strchr("+-*/<>=!", c)) {
+        } else if (strchr("+-*/<>=!", peek_lexer(lexer))) {
             operator(lexer);
-        } else if (strchr(";(){}[],", c)) {
+        } else if (strchr(";(){}[],", peek_lexer(lexer))) {
             marker(lexer);
         }
     }

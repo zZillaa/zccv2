@@ -47,7 +47,7 @@ bool is_at_end(Preprocessor* preprocessor) {
     return *preprocessor->end == '\0';
 }
 
-char advance(Preprocessor* preprocessor) {
+char advance_preprocessor(Preprocessor* preprocessor) {
     if (is_at_end(preprocessor)) return '\0';
     preprocessor->column++;
     preprocessor->current_pos++;
@@ -62,12 +62,6 @@ char peek(Preprocessor* preprocessor) {
 char peek_next(Preprocessor* preprocessor) {
     if (is_at_end(preprocessor) || *(preprocessor->end + 1) == '\0') return '\0';
     return *(preprocessor->end + 1);
-}
-
-bool match(Preprocessor* preprocessor, char expected) {
-    if (peek(preprocessor) != expected) return false;
-    advance(preprocessor);
-    return true;
 }
 
 void add_include(IncludeList* list, char* file_path, int start_pos) {
@@ -111,13 +105,13 @@ void parse_include(Preprocessor* preprocessor, int start_pos) {
         switch (c) {
             case '<':
                 while (!is_at_character(preprocessor, '<')) {
-                    advance(preprocessor);
+                    advance_preprocessor(preprocessor);
                 }
                 break;
 
             case '"':
                 while (!is_at_character(preprocessor, '"')) {
-                    advance(preprocessor);
+                    advance_preprocessor(preprocessor);
                 }
                 break;
 
@@ -165,7 +159,7 @@ char* get_identifier(Preprocessor* preprocessor) {
     preprocessor->start = preprocessor->end;
 
     while (!is_at_end(preprocessor) && (isalnum(peek(preprocessor)) || peek(preprocessor) == '_')) {
-        advance(preprocessor);
+        advance_preprocessor(preprocessor);
     }
 
     int length = preprocessor->end - preprocessor->start;
@@ -176,7 +170,7 @@ char* get_filepath(Preprocessor* preprocessor) {
     preprocessor->start = preprocessor->end;
 
     while (!is_at_end(preprocessor) && isalnum(peek(preprocessor)) || peek(preprocessor) == '_' || peek(preprocessor) == '.') {
-        advance(preprocessor);
+        advance_preprocessor(preprocessor);
     }
 
     int length = preprocessor->end - preprocessor->start;
@@ -258,7 +252,7 @@ void skip_whitespace(Preprocessor* preprocessor) {
             preprocessor->line++;
             preprocessor->column = 1;
         }
-        advance(preprocessor);
+        advance_preprocessor(preprocessor);
     }
 }
 
@@ -272,7 +266,7 @@ Preprocessor* preprocess(char* source) {
 
         if (peek(preprocessor) == '#') {
             int include_pos = preprocessor->current_pos;
-            advance(preprocessor); 
+            advance_preprocessor(preprocessor); 
             
             char* directive = get_identifier(preprocessor);
             if (directive && strcmp(directive, "define") == 0) {
@@ -282,7 +276,7 @@ Preprocessor* preprocess(char* source) {
             }
             free(directive);
         } else {
-            advance(preprocessor);
+            advance_preprocessor(preprocessor);
         }
     }
     replace_macros(preprocessor);
@@ -329,7 +323,7 @@ void replace_macros(Preprocessor* preprocessor) {
         if (peek(preprocessor) == '#') {
             *write_pos = peek(preprocessor);
             write_pos++;
-            advance(preprocessor);
+            advance_preprocessor(preprocessor);
             
             char* directive = get_identifier(preprocessor);
 
@@ -340,13 +334,13 @@ void replace_macros(Preprocessor* preprocessor) {
                 while (!is_at_end(preprocessor) && !is_at_character(preprocessor, '\n')) {
                     *write_pos = peek(preprocessor);
                     write_pos++;
-                    advance(preprocessor);
+                    advance_preprocessor(preprocessor);
                 }
 
                 if (!is_at_end(preprocessor) && is_at_character(preprocessor, '\n')) {
                     *write_pos = peek(preprocessor);
                     write_pos++;
-                    advance(preprocessor);
+                    advance_preprocessor(preprocessor);
                 }
             }
             free(directive);
@@ -367,7 +361,7 @@ void replace_macros(Preprocessor* preprocessor) {
         } else {
             *write_pos = peek(preprocessor);
             write_pos++;
-            advance(preprocessor);
+            advance_preprocessor(preprocessor);
         }
     }
 
@@ -399,14 +393,14 @@ void replace_includes(Preprocessor* preprocessor) {
         if (peek(preprocessor) == '#') {
             *write_pos = peek(preprocessor);
             write_pos++;
-            advance(preprocessor);
+            advance_preprocessor(preprocessor);
 
             char* directive = get_identifier(preprocessor);
             size_t directive_length = strlen(directive);
 
             if (strcmp(directive, "include") == 0) {
                 skip_whitespace(preprocessor);
-                advance(preprocessor);
+                advance_preprocessor(preprocessor);
                 
                 char* file_path = get_filepath(preprocessor);
                 char* file_contents = get_file_contents(file_path);
@@ -417,7 +411,6 @@ void replace_includes(Preprocessor* preprocessor) {
                 if (file_length + used_length >= allocated_length) {
                     size_t new_length = 4 * (file_length + used_length + allocated_length + 1);
                     char* new_write_pos = realloc(write_head, new_length);
-                    printf("Here i am\n");
                     if (!new_write_pos) {
                         free(file_contents);
                         free(file_path);
@@ -439,13 +432,13 @@ void replace_includes(Preprocessor* preprocessor) {
                 while (!is_at_end(preprocessor) && !is_at_character(preprocessor, '\n')) {
                     *write_pos = peek(preprocessor);
                     write_pos++;
-                    advance(preprocessor);
+                    advance_preprocessor(preprocessor);
                 }
 
                 if (!is_at_end(preprocessor) && is_at_character(preprocessor, '\n')) {
                     *write_pos = peek(preprocessor);
                     write_pos++;
-                    advance(preprocessor);
+                    advance_preprocessor(preprocessor);
                 }
             } else {
                 strncpy(write_pos, directive, directive_length);
@@ -455,7 +448,7 @@ void replace_includes(Preprocessor* preprocessor) {
         } else {
             *write_pos = peek(preprocessor);
             write_pos++;
-            advance(preprocessor);
+            advance_preprocessor(preprocessor);
         }
     }
 

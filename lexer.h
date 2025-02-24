@@ -99,23 +99,6 @@ typedef struct {
     char* name;
 } Keyword;
 
-typedef enum {
-    LEXER_ERROR_INVALID_CHARACTER,
-    LEXER_ERROR_UNTERMINATED_STRING,
-    LEXER_ERROR_UNTERMINATED_COMMENT,
-    LEXER_ERROR_UNTERMINATED_LITERAL,
-    LEXER_ERROR_UNTERMINATED_ESCAPE_SEQUENCE,
-    LEXER_ERROR_UNEXPECTED_EOF,
-    LEXER_ERROR_UNRECOGNIZED_TOKEN
-} lexer_error_t;
-
-typedef struct {
-    lexer_error_t type; 
-    char message[256];  
-    int line;
-    int column;
-} LexerError;
-
 typedef struct {
     char* start;
     char* end;
@@ -126,15 +109,18 @@ typedef struct {
     int capacity;
 } Lexer;
 
-char peek(Lexer* lexer);
-char peek_next(Lexer* lexer);
-char advance(Lexer* lexer);
+char peek_lexer(Lexer* lexer);
+char peek_lexer_next(Lexer* lexer);
+char advance_lexer(Lexer* lexer);
 void operator(Lexer* lexer);
 void number(Lexer* lexer);
 void identifier(Lexer* lexer);
 void marker(Lexer* lexer);
 bool add_token(Lexer* lexer, Token token);
 bool match(Lexer* lexer, char expected);
+
+bool lexer_at_end(Lexer* lexer);
+bool skip_lexer_whitespace(Lexer* lexer);
 
 Token create_token(TokenType type, int line, int column);
 Token create_int_token(TokenType type, int value, int line, int column);
@@ -143,8 +129,6 @@ Token create_char_token(TokenType type, char value, int line, int column);
 
 Lexer* init_lexer(char* source);
 Token* lexical_analysis(char* source);
-
-void print_lexer_error(const LexerError* error);
 
 keyword_t get_keyword_type(char* str);
 TokenType keyword_to_token(Keyword* word);
