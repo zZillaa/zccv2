@@ -332,12 +332,18 @@ void replace_macros(Preprocessor* preprocessor) {
             advance(preprocessor);
             
             char* directive = get_identifier(preprocessor);
-            size_t directive_length = strlen(directive);
 
             if (strcmp(directive, "define") == 0 || strcmp(directive, "include") == 0) {
+                size_t directive_length = strlen(directive);
                 strncpy(write_pos, directive, directive_length);
                 write_pos += directive_length;
                 while (!is_at_end(preprocessor) && !is_at_character(preprocessor, '\n')) {
+                    *write_pos = peek(preprocessor);
+                    write_pos++;
+                    advance(preprocessor);
+                }
+
+                if (!is_at_end(preprocessor) && is_at_character(preprocessor, '\n')) {
                     *write_pos = peek(preprocessor);
                     write_pos++;
                     advance(preprocessor);
@@ -367,6 +373,9 @@ void replace_macros(Preprocessor* preprocessor) {
 
     *write_pos = '\0';
     preprocessor->output = strdup(replace->contents);
+    free(replace->contents);
+    free(replace);
+    free(input);
 }
 
 void replace_includes(Preprocessor* preprocessor) {
@@ -388,6 +397,8 @@ void replace_includes(Preprocessor* preprocessor) {
 
     while (!is_at_end(preprocessor)) {
         if (peek(preprocessor) == '#') {
+            *write_pos = peek(preprocessor);
+            write_pos++;
             advance(preprocessor);
 
             char* directive = get_identifier(preprocessor);
@@ -404,7 +415,7 @@ void replace_includes(Preprocessor* preprocessor) {
                 size_t allocated_length = input_length * 4;
 
                 if (file_length + used_length >= allocated_length) {
-                    size_t new_length = 4 * (file_length + allocated_length + 1);
+                    size_t new_length = 4 * (file_length + used_length + allocated_length + 1);
                     char* new_write_pos = realloc(write_head, new_length);
                     printf("Here i am\n");
                     if (!new_write_pos) {
@@ -416,13 +427,30 @@ void replace_includes(Preprocessor* preprocessor) {
                     }
                     write_pos = new_write_pos + used_length;
                     write_head = new_write_pos;
-                    input_length = new_length / 4;
                 }               
                 strncpy(write_pos, file_contents, file_length);
                 write_pos += file_length;
                 free(file_contents);
                 free(file_path);
-            } 
+            } else if (strcmp(directive, "define") == 0) {
+                strncpy(write_pos, directive, directive_length);
+                write_pos += directive_length;
+
+                while (!is_at_end(preprocessor) && !is_at_character(preprocessor, '\n')) {
+                    *write_pos = peek(preprocessor);
+                    write_pos++;
+                    advance(preprocessor);
+                }
+
+                if (!is_at_end(preprocessor) && is_at_character(preprocessor, '\n')) {
+                    *write_pos = peek(preprocessor);
+                    write_pos++;
+                    advance(preprocessor);
+                }
+            } else {
+                strncpy(write_pos, directive, directive_length);
+                write_pos += directive_length;
+            }
             free(directive);
         } else {
             *write_pos = peek(preprocessor);
