@@ -86,6 +86,10 @@ bool add_token(Lexer* lexer, Token token) {
     return true;
 }
 
+bool lexer_at_character(Lexer* lexer, char c) {
+    return *lexer->end == c;
+}
+
 char advance_lexer(Lexer* lexer) {
     if (lexer_at_end(lexer)) return '\0';
     lexer->column++;
@@ -256,6 +260,12 @@ void marker(Lexer* lexer) {
         case '}': type = TOKEN_RIGHT_BRACE; break;
         case ';': type = TOKEN_SEMICOLON; break;
         case ',': type = TOKEN_COMMA; break;
+        case '_': type = TOKEN_UNDERSCORE; break;
+        case '#': 
+            advance_lexer(lexer);
+            while (!lexer_at_end(lexer) && !lexer_at_character(lexer, '\n')) {
+                advance_lexer(lexer);
+            }
     }
 
     add_token(lexer, create_char_token(type, c, lexer->line, lexer->column - 1));
@@ -288,7 +298,7 @@ Token* lexical_analysis(char* source) {
             identifier(lexer);
         } else if (isdigit(peek_lexer(lexer)) || (peek_lexer(lexer) == '-' && isdigit(peek_lexer_next(lexer)))) {
             number(lexer);
-        } else if (strchr("+-*/<>=!", peek_lexer(lexer))) {
+        } else if (strchr("_#+-*/<>=!", peek_lexer(lexer))) {
             operator(lexer);
         } else if (strchr(";(){}[],", peek_lexer(lexer))) {
             marker(lexer);

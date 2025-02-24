@@ -1,6 +1,3 @@
-#include "lexer.h"
-#include "codegen.h"
-
 #define MAX_NUMBERS 100
 #define MAX_SHOES 200
 

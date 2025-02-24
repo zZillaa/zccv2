@@ -121,6 +121,7 @@ bool match(Lexer* lexer, char expected);
 
 bool lexer_at_end(Lexer* lexer);
 bool skip_lexer_whitespace(Lexer* lexer);
+bool lexer_at_character(Lexer* lexer, char c);
 
 Token create_token(TokenType type, int line, int column);
 Token create_int_token(TokenType type, int value, int line, int column);
