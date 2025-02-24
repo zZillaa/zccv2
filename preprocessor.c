@@ -32,6 +32,7 @@ Preprocessor* init_preprocessor(char* source) {
     
     preprocessor->line = 1;
     preprocessor->column = 1;
+    preprocessor->current_pos = 1;
     preprocessor->start = source;
     preprocessor->end = source;
     preprocessor->output = strdup(source);
@@ -142,10 +143,10 @@ bool macro_exists(MacroList* macros, char* name) {
     return false;
 }
 
-void add_macro(MacroList* macros, char* name, int value) {
+void add_macro(MacroList* macros, char* name, char* replacement) {
     Macro macro_node = {
         .name = strdup(name),
-        .u.value = value,
+        .replacement = strdup(replacement)
     };
 
     if (macros->macro_count >= macros->macro_capacity) {
@@ -171,6 +172,17 @@ char* get_identifier(Preprocessor* preprocessor) {
     return strndup(preprocessor->start, length);
 }
 
+char* get_filepath(Preprocessor* preprocessor) {
+    preprocessor->start = preprocessor->end;
+
+    while (!is_at_end(preprocessor) && isalnum(peek(preprocessor)) || peek(preprocessor) == '_' || peek(preprocessor) == '.') {
+        advance(preprocessor);
+    }
+
+    int length = preprocessor->end - preprocessor->start;
+    return strndup(preprocessor->start, length);
+}
+
 void parse_define(Preprocessor* preprocessor) {
     skip_whitespace(preprocessor);
 
@@ -180,37 +192,14 @@ void parse_define(Preprocessor* preprocessor) {
     skip_whitespace(preprocessor);
 
     preprocessor->start = preprocessor->end;
-    char c = peek(preprocessor);
-    if (c != '-' || !isdigit(peek(preprocessor))) return;
     
-    int value = get_number(preprocessor);
+    char* text = get_identifier(preprocessor);
     if (!macro_exists(preprocessor->macros, name)) {
-        add_macro(preprocessor->macros, name, value);
+        add_macro(preprocessor->macros, name, text);
     }
-         
+
+    free(text);
     free(name);
-}
-
-int get_number(Preprocessor* preprocessor) {
-    bool isNegative = false;
-    if (*preprocessor->start == '-') {
-        isNegative = true;
-        advance(preprocessor);
-    }
-
-    while (isdigit(peek(preprocessor))) {
-        advance(preprocessor);
-    }
-
-    // not consuming '-' as we have bool flag
-    int length = preprocessor->end - preprocessor->start + 1;
-    char* num_str = strndup(preprocessor->start, length);
-    int value = atoi(num_str);
-    if (isNegative) value = -value;
-
-    free(num_str);
-
-    return value;
 }
 
 long get_file_size(FILE* file) {
@@ -297,8 +286,154 @@ Preprocessor* preprocess(char* source) {
         }
     }
     replace_macros(preprocessor);
+    // replace_includes(preprocessor);
 
     return preprocessor;
+}
+
+char* find_macro_replacement(MacroList* macros, const char* name) {
+    for (size_t i = 0; i < macros->macro_count; i++) {
+        if (strcmp(macros->macro[i].name, name) == 0) {
+            return macros->macro[i].replacement;
+        }
+    }
+    return NULL;
+}
+
+MacroReplace* init_macro_replace(size_t input_length) {
+    MacroReplace* replace = malloc(sizeof(MacroReplace));
+    if (!replace) return NULL;
+
+    replace->contents = malloc(input_length * 2);
+    if (!replace->contents) {
+        free(replace);
+        return NULL;
+    }
+
+    return replace;
+}
+
+void replace_macros(Preprocessor* preprocessor) {
+    if (!preprocessor) return;
+
+    char* input = strdup(preprocessor->output);
+    size_t input_length = strlen(input);
+
+    MacroReplace* replace = init_macro_replace(input_length);
+    char* write_pos = replace->contents;
+
+    preprocessor->start = preprocessor->output;
+    preprocessor->end = preprocessor->output;
+
+    while (!is_at_end(preprocessor)) {
+        if (peek(preprocessor) == '#') {
+            *write_pos = peek(preprocessor);
+            write_pos++;
+            advance(preprocessor);
+            
+            char* directive = get_identifier(preprocessor);
+            size_t directive_length = strlen(directive);
+
+            if (strcmp(directive, "define") == 0 || strcmp(directive, "include") == 0) {
+                strncpy(write_pos, directive, directive_length);
+                write_pos += directive_length;
+                while (!is_at_character(preprocessor, '\n')) {
+                    *write_pos = peek(preprocessor);
+                    write_pos++;
+                    advance(preprocessor);
+                }
+            }
+            free(directive);
+        } else if (isalpha(peek(preprocessor))) {
+            char* text = get_identifier(preprocessor);
+            char* replacement = find_macro_replacement(preprocessor->macros, text);
+
+            if (replacement) {
+                size_t replacement_length = strlen(replacement);
+                strncpy(write_pos, replacement, replacement_length);
+                write_pos += replacement_length;
+            } else {
+                size_t text_length = strlen(text);
+                strncpy(write_pos, text, text_length);
+                write_pos += text_length;
+            }
+            free(text);
+        } else {
+            *write_pos = peek(preprocessor);
+            write_pos++;
+            advance(preprocessor);
+        }
+    }
+
+    *write_pos = '\0';
+    preprocessor->output = strdup(replace->contents);
+}
+
+IncludeReplace* init_include_replace(size_t input_length) {
+    IncludeReplace* replace = malloc(sizeof(IncludeReplace));
+    if (!replace) return NULL;
+
+    replace->contents = malloc(input_length * 4);
+    if (!replace->contents) {
+        printf("Why null?\n");
+        free(replace);
+        return NULL;
+    }
+
+    return replace;
+}
+
+void replace_includes(Preprocessor* preprocessor) {
+    if (!preprocessor) return;
+
+    char* input = strdup(preprocessor->output);
+    if (!input) return;
+    size_t input_length = strlen(input);
+    IncludeReplace* replace = init_include_replace(input_length);
+    char* write_pos = replace->contents;
+    
+    preprocessor->start = preprocessor->output;
+    preprocessor->end = preprocessor->output;
+
+    while (!is_at_end(preprocessor)) {
+        if (peek(preprocessor) == '#') {
+            advance(preprocessor);
+
+            char* directive = get_identifier(preprocessor);
+            size_t directive_length = strlen(directive);
+
+            if (strcmp(directive, "include") == 0) {
+                skip_whitespace(preprocessor);
+                advance(preprocessor);
+                
+                char* file_path = get_filepath(preprocessor);
+                char* file_contents = get_file_contents(file_path);
+                size_t file_length = strlen(file_contents);
+                size_t curr_length = strlen(write_pos);
+
+                if (file_length >= curr_length) {
+                    size_t new_length = 2 * file_length;
+                    write_pos = realloc(write_pos, new_length);
+                    if (!write_pos) return;
+                }
+
+                strncpy(write_pos, file_contents, file_length);
+                write_pos += file_length;
+
+                free(file_path);
+
+            } 
+            free(directive);
+
+        } else {
+            *write_pos = peek(preprocessor);
+            write_pos++;
+            advance(preprocessor);
+        }
+    }
+
+    write_pos = '\0';
+    preprocessor->output = strdup(replace->contents);
 }
 
 void free_preprocessor(Preprocessor* preprocessor) {
@@ -306,8 +441,7 @@ void free_preprocessor(Preprocessor* preprocessor) {
 
     if (preprocessor->macros) {
         for (size_t i = 0; i < preprocessor->macros->macro_count; i++) {
-            free(preprocessor->macros->macro[i].name);
-            free(preprocessor->macros->macro[i].u.replacement);
+            free(preprocessor->macros->macro[i].replacement);
         } 
         free(preprocessor->macros->macro);
         free(preprocessor->macros);
@@ -323,30 +457,6 @@ void free_preprocessor(Preprocessor* preprocessor) {
         }
         free(preprocessor->includes);
     }
+    free(preprocessor->output);
     free(preprocessor);
-}
-
-int find_macro_replacement(MacroList* macros, const char* name) {
-    for (size_t i = 0; i < macros->macro_count; i++) {
-        if (strcmp(macros->macro[i].name, name) == 0) {
-            return macros->macro[i].u.value;
-        }
-    }
-    return -1;
-}
-
-void replace_macros(Preprocessor* preprocessor) {
-    char* input = strdup(preprocessor->output);
-    if (!input) return;
-
-    size_t output_size = strlen(input) * 2;
-    char* output = malloc(output_size);
-    if (!output) {
-        free(input);
-        return;
-    }
-
-    char* current = ouptut;
-    char* input_ptr = input;
-
 }

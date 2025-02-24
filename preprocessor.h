@@ -29,11 +29,7 @@ typedef struct {
 
 typedef struct {
 	char* name;
-	union {
-		char* replacement;
-		int value;
-	} u;
-
+	char* replacement;
 } Macro;
 
 typedef struct {
@@ -45,23 +41,29 @@ typedef struct {
 typedef struct {
 	int line;
 	int column;
-
 	char* start;
 	char* end;
 	char* output;
-
 	int current_pos;
 
 	IncludeList* includes;
 	MacroList* macros;
 } Preprocessor;
 
+typedef struct {
+	char* contents;
+} MacroReplace;
+
+typedef struct {
+	char* contents;
+} IncludeReplace;
+
 // macro functionality
 bool is_at_end(Preprocessor* preprocessor);
 bool is_at_character(Preprocessor* preprocessor, char c);
 
+char* get_filepath(Preprocessor* preprocessor);
 char* get_identifier(Preprocessor* preprocessor);
-int get_number(Preprocessor* preprocessor);
 void parse_define(Preprocessor* preprocessor);
 void parse_include(Preprocessor* preprocessor, int start_pos);
 void add_include(IncludeList* list, char* file_path, int start_pos);
@@ -73,10 +75,12 @@ void skip_whitespace(Preprocessor* preprocessor);
 
 
 bool macro_exists(MacroList* macros, char* name);
-int find_macro_replacement(MacroList* macros, const char* name);
-void add_macro(MacroList* list, char* name, int value);
+MacroReplace* init_macro_replace(size_t input_length);
+IncludeReplace* init_include_replace(size_t input_length);
+char* find_macro_replacement(MacroList* macros, const char* name);
 void replace_macros(Preprocessor* preprocessor);
-void add_macro(MacroList* macros, const char* name, const char* value);
+void add_macro(MacroList* macros, char* name, char* replacement);
+void replace_includes(Preprocessor* preprocessor);
 
 // writer code from #include directive to file
 long get_file_size(FILE* file);
