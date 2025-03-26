@@ -3,6 +3,7 @@ section .data
 section .text
 global function
 global function2
+global function3
 global main
 global _start
 
@@ -40,6 +41,14 @@ function2:
 	mov rbx, [rbp - 8]
 	add rax, rbx
 	mov [rbp - 12], rax
+
+function3:
+	push rbp
+	mov rbp, rsp
+	sub rsp, 16
+
+	mov rax, 10
+	mov [rbp - 4], rax
 
 main:
 	push rbp

@@ -261,8 +261,6 @@ void marker(Lexer* lexer) {
         case ';': type = TOKEN_SEMICOLON; break;
         case ',': type = TOKEN_COMMA; break;
         case '_': type = TOKEN_UNDERSCORE; break;
-        case '*': type = TOKEN_ASTERISK; break;       
-        case '#': type = TOKEN_POUND; break;
     }
 
     add_token(lexer, create_char_token(type, c, lexer->line, lexer->column - 1));
@@ -297,9 +295,9 @@ Token* lexical_analysis(char* source) {
             identifier(lexer);
         } else if (isdigit(peek_lexer(lexer)) || (peek_lexer(lexer) == '-' && isdigit(peek_lexer_next(lexer)))) {
             number(lexer);
-        } else if (strchr("_#+-*/<>=!", peek_lexer(lexer))) {
+        } else if (strchr("+-*/<>=!", peek_lexer(lexer))) {
             operator(lexer);
-        } else if (strchr(";(){}[],", peek_lexer(lexer))) {
+        } else if (strchr("#*_;(){}[],", peek_lexer(lexer))) {
             marker(lexer);
         } else {
             advance_lexer(lexer);

@@ -18,6 +18,10 @@ int function2() {
 	return z;
 }
 
+int function3() {
+	int x = 10;
+}
+
 int main() {
 	int x = NUMBER;
 	return 0;
