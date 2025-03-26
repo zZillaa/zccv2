@@ -391,17 +391,16 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-			if (e->symbol && e->symbol->kind == SYMBOL_LOCAL) {
-				snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-					symbol_codegen(e->symbol),
-					scratch_name(sregs, e->reg));
+			// if (e->symbol && e->symbol->kind == SYMBOL_LOCAL) {
+			// 	snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
+			// 		symbol_codegen(e->symbol),
+			// 		scratch_name(sregs, e->reg));
 
-				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			}
+			// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			// }
 			break;
 
 		case EXPR_ARRAY_VAL:
-			// printf("Found array value: %d\n", e->integer_value);
 			break;
 
 		case EXPR_ARRAY:

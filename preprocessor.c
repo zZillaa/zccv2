@@ -391,8 +391,8 @@ void replace_includes(Preprocessor* preprocessor) {
 
     while (!is_at_end(preprocessor)) {
         if (peek(preprocessor) == '#') {
-            *write_pos = peek(preprocessor);
-            write_pos++;
+            // *write_pos = peek(preprocessor);
+            // write_pos++;
             advance_preprocessor(preprocessor);
 
             char* directive = get_identifier(preprocessor);
@@ -426,18 +426,11 @@ void replace_includes(Preprocessor* preprocessor) {
                 free(file_contents);
                 free(file_path);
             } else if (strcmp(directive, "define") == 0) {
-                strncpy(write_pos, directive, directive_length);
-                write_pos += directive_length;
-
                 while (!is_at_end(preprocessor) && !is_at_character(preprocessor, '\n')) {
-                    *write_pos = peek(preprocessor);
-                    write_pos++;
                     advance_preprocessor(preprocessor);
                 }
 
                 if (!is_at_end(preprocessor) && is_at_character(preprocessor, '\n')) {
-                    *write_pos = peek(preprocessor);
-                    write_pos++;
                     advance_preprocessor(preprocessor);
                 }
             } else {

@@ -261,11 +261,8 @@ void marker(Lexer* lexer) {
         case ';': type = TOKEN_SEMICOLON; break;
         case ',': type = TOKEN_COMMA; break;
         case '_': type = TOKEN_UNDERSCORE; break;
-        case '#': 
-            advance_lexer(lexer);
-            while (!lexer_at_end(lexer) && !lexer_at_character(lexer, '\n')) {
-                advance_lexer(lexer);
-            }
+        case '*': type = TOKEN_ASTERISK; break;       
+        case '#': type = TOKEN_POUND; break;
     }
 
     add_token(lexer, create_char_token(type, c, lexer->line, lexer->column - 1));
@@ -294,6 +291,8 @@ Token* lexical_analysis(char* source) {
 
         if (lexer_at_end(lexer)) break;
 
+        lexer->start = lexer->end;
+
         if (isalpha(peek_lexer(lexer))) {
             identifier(lexer);
         } else if (isdigit(peek_lexer(lexer)) || (peek_lexer(lexer) == '-' && isdigit(peek_lexer_next(lexer)))) {
@@ -302,6 +301,8 @@ Token* lexical_analysis(char* source) {
             operator(lexer);
         } else if (strchr(";(){}[],", peek_lexer(lexer))) {
             marker(lexer);
+        } else {
+            advance_lexer(lexer);
         }
     }
 
@@ -385,6 +386,8 @@ void print_tokens(Token* tokens) {
             case TOKEN_INT_LITERAL:
                 printf("INT LITERAL, Value: %d\n", tokens[i].value.integer_value);
                 break;
+            case TOKEN_STRUCT:
+                printf("STRUCT, Value: %s\n", tokens[i].value.string);
             case TOKEN_ID:
                 printf("IDENTIFIER, Value: %s\n", tokens[i].value.string);
                 break;
@@ -397,6 +400,8 @@ void print_tokens(Token* tokens) {
             case TOKEN_UNKNOWN:
                 printf("UNKNOWN\n");
                 break;
+            case TOKEN_ASTERISK:
+            case TOKEN_POUND:
             case TOKEN_ADD:
             case TOKEN_SUBTRACT:
             case TOKEN_MULTIPLY:
