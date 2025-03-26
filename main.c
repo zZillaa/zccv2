@@ -5,8 +5,8 @@
 #include <string.h>
 #include "preprocessor.h"
 #include "lexer.h"
-// #include "ast.h"
-// #include "codegen.h"
+#include "ast.h"
+#include "codegen.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -27,23 +27,23 @@ int main(int argc, char** argv) {
         Token* tokens = lexical_analysis(preprocessor->output);
         print_tokens(tokens);
         
-        // struct program* ast = build_ast(tokens);
-        // print_ast(ast);
+        struct program* ast = build_ast(tokens);
+        print_ast(ast);
     
-        // // Name resolution and type checking
-        // struct stack* stack = create_stack();
-        // scope_enter(stack, NULL);
-        // program_resolve(ast, stack);    
-        // program_typecheck(ast, stack);
+        // Name resolution and type checking
+        struct stack* stack = create_stack();
+        scope_enter(stack, NULL);
+        program_resolve(ast, stack);    
+        program_typecheck(ast, stack);
 
-        // struct RegisterTable* sregs = create_register_table();
-        // struct AsmWriter* writer = create_asm_writer("output.asm");
-        // decl_codegen(sregs, writer, ast->declaration, false);
+        struct RegisterTable* sregs = create_register_table();
+        struct AsmWriter* writer = create_asm_writer("output.asm");
+        decl_codegen(sregs, writer, ast->declaration, false);
         
-        // free_asm_writer(writer);
-        // free_register_table(sregs);
-        // free_stack(stack);
-        // free_ast(ast);
+        free_asm_writer(writer);
+        free_register_table(sregs);
+        free_stack(stack);
+        free_ast(ast);
         free_tokens(tokens);
         free_preprocessor(preprocessor);
         free(contents);
