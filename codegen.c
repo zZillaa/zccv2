@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200909L
 #include "codegen.h"
 
 struct Register* create_register(register_state_t state, const char* name) {
@@ -338,8 +339,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		case EXPR_ADD:
 			expr_codegen(sregs, writer, e->left);
 			expr_codegen(sregs, writer, e->right);
-			printf("Left child name: %s\n", e->left->name);
-			printf("Right child name: %s\n", e->right->name);
+			// printf("Left child name: %s\n", e->left->name);
+			// printf("Right child name: %s\n", e->right->name);
 
 			snprintf(buffer, sizeof(buffer), "\t%s %s, %s", 
 				(e->kind == EXPR_ADD) ? "add" : "sub",
@@ -362,7 +363,6 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			break;
 
 		case EXPR_ASSIGNMENT:
-		    printf("Here i am in EXPR_ASSIGNMENT\n");
 		    expr_codegen(sregs, writer, e->right);
 		    snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
 		        symbol_codegen(e->left->symbol),
@@ -391,17 +391,16 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-			if (e->symbol && e->symbol->kind == SYMBOL_LOCAL) {
-				snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-					symbol_codegen(e->symbol),
-					scratch_name(sregs, e->reg));
+			// if (e->symbol && e->symbol->kind == SYMBOL_LOCAL) {
+			// 	snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
+			// 		symbol_codegen(e->symbol),
+			// 		scratch_name(sregs, e->reg));
 
-				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			}
+			// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			// }
 			break;
 
 		case EXPR_ARRAY_VAL:
-			// printf("Found array value: %d\n", e->integer_value);
 			break;
 
 		case EXPR_ARRAY:
@@ -648,6 +647,7 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         if (!have_declared_start) {
             snprintf(buffer, sizeof(buffer), "global _start\n\n_start:\n");
             asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+            writer->start_section = ftell(writer->file);
             have_declared_start = true;
         }
         
@@ -655,15 +655,21 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         struct decl* func_bodies = d;
         while (func_bodies) {
             if (func_bodies->type->kind == TYPE_FUNCTION) {
-                snprintf(buffer, sizeof(buffer), "\n%s:", func_bodies->name);
-                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-                snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %ld\n", 
-                        func_bodies->symbol->s.total_local_bytes);
-                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-                
-                if (func_bodies->code) {
-                    stmt_codegen(sregs, writer, func_bodies->code);
-                }
+            	if (strcmp(func_bodies->name, "main") == 0) {
+            		snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %ld\n", 
+	                        func_bodies->symbol->s.total_local_bytes);
+            		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+            	} else {
+	                snprintf(buffer, sizeof(buffer), "\n%s:", func_bodies->name);
+	                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+	                snprintf(buffer, sizeof(buffer), "\tpush rbp\n\tmov rbp, rsp\n\tsub rsp, %ld\n", 
+	                        func_bodies->symbol->s.total_local_bytes);
+	                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+	                
+	                if (func_bodies->code) {
+	                    stmt_codegen(sregs, writer, func_bodies->code);
+	                }
+            	}
             }
             func_bodies = func_bodies->next;
         }

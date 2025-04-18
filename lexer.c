@@ -261,8 +261,11 @@ void marker(Lexer* lexer) {
         case ';': type = TOKEN_SEMICOLON; break;
         case ',': type = TOKEN_COMMA; break;
         case '_': type = TOKEN_UNDERSCORE; break;
+<<<<<<< HEAD
         case '#': type = TOKEN_POUND; break;
         case '*': type = TOKEN_ASTERISK; break;
+=======
+>>>>>>> 738747bf37787cc5322c2abbab3ad98c186e9803
     }
 
     add_token(lexer, create_char_token(type, c, lexer->line, lexer->column - 1));
@@ -386,6 +389,8 @@ void print_tokens(Token* tokens) {
             case TOKEN_INT_LITERAL:
                 printf("INT LITERAL, Value: %d\n", tokens[i].value.integer_value);
                 break;
+            case TOKEN_STRUCT:
+                printf("STRUCT, Value: %s\n", tokens[i].value.string);
             case TOKEN_ID:
                 printf("IDENTIFIER, Value: %s\n", tokens[i].value.string);
                 break;
@@ -398,6 +403,8 @@ void print_tokens(Token* tokens) {
             case TOKEN_UNKNOWN:
                 printf("UNKNOWN\n");
                 break;
+            case TOKEN_ASTERISK:
+            case TOKEN_POUND:
             case TOKEN_ADD:
             case TOKEN_SUBTRACT:
             case TOKEN_MULTIPLY:

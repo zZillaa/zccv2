@@ -6,6 +6,10 @@
 #include "preprocessor.h"
 #include "lexer.h"
 #include "ast.h"
+<<<<<<< HEAD
+=======
+#include "IR.h"
+>>>>>>> 738747bf37787cc5322c2abbab3ad98c186e9803
 #include "codegen.h"
 
 int main(int argc, char** argv) {
@@ -36,6 +40,12 @@ int main(int argc, char** argv) {
         program_resolve(ast, stack);    
         program_typecheck(ast, stack);
 
+<<<<<<< HEAD
+=======
+        struct DAG* dag = build_DAG(ast->declaration);
+        print(dag);
+
+>>>>>>> 738747bf37787cc5322c2abbab3ad98c186e9803
         struct RegisterTable* sregs = create_register_table();
         struct AsmWriter* writer = create_asm_writer("output.asm");
         decl_codegen(sregs, writer, ast->declaration, false);

@@ -391,6 +391,11 @@ void replace_includes(Preprocessor* preprocessor) {
 
     while (!is_at_end(preprocessor)) {
         if (peek(preprocessor) == '#') {
+<<<<<<< HEAD
+=======
+            // *write_pos = peek(preprocessor);
+            // write_pos++;
+>>>>>>> 738747bf37787cc5322c2abbab3ad98c186e9803
             advance_preprocessor(preprocessor);
 
             char* directive = get_identifier(preprocessor);
