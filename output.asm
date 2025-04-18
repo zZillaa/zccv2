@@ -49,11 +49,7 @@ function3:
 
 	mov rax, 10
 	mov [rbp - 4], rax
-
-main:
 	push rbp
 	mov rbp, rsp
 	sub rsp, 16
 
-	mov rax, 5
-	mov [rbp - 4], rax

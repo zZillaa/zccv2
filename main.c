@@ -6,6 +6,7 @@
 #include "preprocessor.h"
 #include "lexer.h"
 #include "ast.h"
+#include "IR.h"
 #include "codegen.h"
 
 int main(int argc, char** argv) {
@@ -35,6 +36,9 @@ int main(int argc, char** argv) {
         scope_enter(stack, NULL);
         program_resolve(ast, stack);    
         program_typecheck(ast, stack);
+
+        struct DAG* dag = build_DAG(ast->declaration);
+        print(dag);
 
         struct RegisterTable* sregs = create_register_table();
         struct AsmWriter* writer = create_asm_writer("output.asm");
