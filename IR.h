@@ -71,6 +71,7 @@ struct basic_block {
 	struct basic_block** successors;
 
 	bool block_freed;
+	bool emitted_x86_assembly;
 };
 
 struct CFG {

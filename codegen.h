@@ -6,10 +6,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define MAX_SCRATCH_REGISTERS 10
-
-static int label_counter = 0;
-
 typedef enum register_state_t {
 	REGISTER_FREE,
 	REGISTER_USED
@@ -81,6 +77,12 @@ char* symbol_codegen(struct symbol* sym);
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);
 void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s);
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d, bool is_local);
+
+void codegen_dag_node(struct RegisterTable* sregs, struct AsmWriter* writer, struct dag_node* node);
+void codegen_block(struct RegisterTable* sregs, struct AsmWriter* writer, struct basic_block* block);
+void codegen_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg);
+void process_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg);
+
 void free_register(struct Register* r);
 void free_register_table(struct RegisterTable* sregs);
 #endif

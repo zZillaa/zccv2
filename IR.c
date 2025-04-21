@@ -462,7 +462,8 @@ struct basic_block* initialize_block() {
 		return NULL;
 	}
 	block->block_freed = false;
-
+	block->emitted_x86_assmebly = false;
+	
 	return block;
 }
 
@@ -784,7 +785,7 @@ void process_stmt_for_blocks(struct CFG* cfg, struct stmt* s, int* current_block
 				current_block = cfg->blocks[0];
 				if (!current_block) {
 					fprintf(stderr, "Error: entry block is NULL\n");
-					return NULL;
+					return;
 				}
 
 			} else {
