@@ -192,7 +192,7 @@ struct param_list* parse_parameters(Token* tokens, int* tokenIdx);
 struct decl* parse_function(Token* tokens, int* tokenIdx, char* name, struct type* return_type);
 struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* element_type);
 struct expr* parse_array_init_list(Token* tokens, int* tokenIdx);
-// TODO
+
 struct expr* parse_struct_members(Token* tokens, int* tokenIdx);
 struct decl* parse_struct(Token* tokens, int* tokenIdx);
 struct decl* parse_declaration(Token* tokens, int* tokenIdx);
