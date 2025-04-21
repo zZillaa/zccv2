@@ -51,10 +51,7 @@ typedef enum TokenType {
 
     TOKEN_SEMICOLON,
     TOKEN_COMMA,
-<<<<<<< HEAD
-=======
-    TOKEN_ASTERISK,
->>>>>>> 738747bf37787cc5322c2abbab3ad98c186e9803
+
     TOKEN_POUND,
     TOKEN_UNDERSCORE,
     TOKEN_ASTERISK,

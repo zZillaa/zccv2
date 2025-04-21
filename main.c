@@ -6,7 +6,6 @@
 #include "preprocessor.h"
 #include "lexer.h"
 #include "ast.h"
-
 #include "IR.h"
 #include "codegen.h"
 
@@ -40,12 +39,12 @@ int main(int argc, char** argv) {
 
         struct CFG* cfg = build_CFG(ast->declaration);
 
-        struct RegisterTable* sregs = create_register_table();
-        struct AsmWriter* writer = create_asm_writer("output.asm");
-        decl_codegen(sregs, writer, ast->declaration, false);
+        // struct RegisterTable* sregs = create_register_table();
+        // struct AsmWriter* writer = create_asm_writer("output.asm");
+        // decl_codegen(sregs, writer, ast->declaration, false);
         
-        free_asm_writer(writer);
-        free_register_table(sregs);
+        // free_asm_writer(writer);
+        // free_register_table(sregs);
         free_all_CFG(cfg);
         free_stack(stack);
         free_ast(ast);

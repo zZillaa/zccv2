@@ -1,15 +1,17 @@
 #ifndef IR_H
 #define IR_H
 
-#include "stdio.h"
-#include "stdlib.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+#include "ast.h"
 
 typedef enum {
-	DAG_IADD,
-	DAG_ISUB,
-	DAG_IMUL,
-	DAG_IDIV,
+	DAG_ADD,
+	DAG_SUB,
+	DAG_MUL,
+	DAG_DIV,
 
 	DAG_ADD_AND_ASSIGN,
 	DAG_SUB_AND_ASSIGN,
@@ -67,6 +69,8 @@ struct basic_block {
 
 	int successor_count;
 	struct basic_block** successors;
+
+	bool block_freed;
 };
 
 struct CFG {
@@ -80,9 +84,9 @@ struct CFG {
 struct dag_node* create_dag_node(dag_kind_t kind, struct dag_node* l, struct dag_node* r, union dag_value u);
 struct dag_node_table* create_dag_node_table();
 
-void update_dn_tables(struct dag_node_table* dn_table, struct dag_node* new_node);
+struct dag_node_table* update_dn_tables(struct dag_node_table* dn_table, struct dag_node* new_node);
 struct dag_node* find_or_create_dag_node(struct dag_node_table** dn_table, 
-	dag_kind_t kind, struct dag_node* l, struct dag_node* r union dag_value u);
+	dag_kind_t kind, struct dag_node* l, struct dag_node* r, union dag_value u);
 
 struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_node_table** dn_table);
 struct dag_node* stmt_intermediate_representation(struct stmt* s, struct dag_node_table** dn_table);

@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -g -std=c11 -D_POSIX_C_SOURCE=200809L
 
-SRCS = main.c preprocessor.c lexer.c parser.c semantics_other.c IR.c codegen.c
+SRCS = main.c preprocessor.c lexer.c parser.c semantics_other.c IR.c
 OBJS = ${SRCS:.c=.o}
 target = compiler
 

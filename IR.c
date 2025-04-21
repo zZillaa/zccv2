@@ -2,7 +2,7 @@
 #define BLOCK_COUNT 1000
 #define PREDECESSOR_COUNT 100
 #define SUCCESSOR_COUNT 100
-#define DAG_NODE_COUNT 100
+#define DAG_NODE_COUNT 10
 
 struct dag_node* create_dag_node(dag_kind_t kind, struct dag_node* left, struct dag_node* right, union dag_value u) {
 	struct dag_node* node = malloc(sizeof(struct dag_node));
@@ -33,7 +33,7 @@ struct dag_node_table* create_dag_node_table() {
 }
 
 struct dag_node_table* update_dn_tables(struct dag_node_table* dn_table, struct dag_node* new_node) {
-	if (!dn_table || !new_table) return NULL;
+	if (!dn_table) return NULL;
 	
 	struct dag_node_table* new_table = create_dag_node_table();
 	if (!new_table) return NULL;
@@ -59,9 +59,9 @@ struct dag_node* find_or_create_dag_node(struct dag_node_table** dn_table, dag_k
 				if (node->u.integer_value == u.integer_value) return node;
 			} else if (kind == DAG_CHARACTER) {
 				if (node->u.char_value == u.char_value) return node;
-			} else if (kind == DAG_IADD || kind == DAG_ISUB || kind == DAG_IMUL || kind == DAG_IDIV ||
-				kind == DAG_IADD_AND_ASSIGN || kind == DAG_ISUB_AND_ASSIGN || kind == DAG_IMUL_AND_ASSIGN ||
-				kind == DAG_IDIV_AND_ASSIGN || kind == DAG_INCREMENT || kind == DAG_DECREMENT || kind == DAG_NOT ||
+			} else if (kind == DAG_ADD || kind == DAG_SUB || kind == DAG_MUL || kind == DAG_DIV ||
+				kind == DAG_ADD_AND_ASSIGN || kind == DAG_SUB_AND_ASSIGN || kind == DAG_MUL_AND_ASSIGN ||
+				kind == DAG_DIV_AND_ASSIGN || kind == DAG_INCREMENT || kind == DAG_DECREMENT || kind == DAG_NOT ||
 				kind == DAG_LESS || kind == DAG_GREATER || kind == DAG_LESS_EQUAL || kind == DAG_GREATER_EQUAL || 
 				kind == DAG_NOT_EQUAL || kind == DAG_EQUAL || kind == DAG_ASSIGN) {
 					return node;
@@ -83,8 +83,8 @@ struct dag_node* find_or_create_dag_node(struct dag_node_table** dn_table, dag_k
 }
 
 struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_node_table** dn_table) {
-	if (!e) {
-		fprintf(stderr, "Error: expression is null in expr_intermediate_representation()\n");
+	if (!e || !*dn_table) {
+		fprintf(stderr, "Error: expression or dn_talbe is null in expr_intermediate_representation()\n");
 		return NULL;
 	}
 
@@ -104,7 +104,7 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 				return create_dag_node(DAG_INTEGER_VALUE, NULL, NULL, val);
 			}
 			union dag_value val = {0};
-			return find_or_create_dag_node(dn_table, DAG_IMUL, left, right, val);
+			return find_or_create_dag_node(dn_table, DAG_MUL, left, right, val);
 		}
 		case EXPR_SUB: {
 			struct dag_node* left = expr_intermediate_representation(e->left, dn_table);
@@ -121,7 +121,7 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 				return create_dag_node(DAG_INTEGER_VALUE, NULL, NULL, val);
 			}
 			union dag_value val = {0};
-			return find_or_create_dag_node(dn_table, DAG_ISUB, left, right, val);
+			return find_or_create_dag_node(dn_table, DAG_SUB, left, right, val);
 		}
 		case EXPR_ADD: {
 			struct dag_node* left = expr_intermediate_representation(e->left, dn_table);
@@ -138,7 +138,7 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 				return create_dag_node(DAG_INTEGER_VALUE, NULL, NULL, val);
 			}
 			union dag_value val = {0};
-			return find_or_create_dag_node(dn_table, DAG_IADD, left, right, val);
+			return find_or_create_dag_node(dn_table, DAG_ADD, left, right, val);
 		}
 		case EXPR_DIV: {
 			struct dag_node* left = expr_intermediate_representation(e->left, dn_table);
@@ -159,7 +159,7 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 				return create_dag_node(DAG_INTEGER_VALUE, NULL, NULL, val);
 			}
 			union dag_value val = {0};
-			return find_or_create_dag_node(dn_table, DAG_IDIV, left, right, val);
+			return find_or_create_dag_node(dn_table, DAG_DIV, left, right, val);
 		}
 		case EXPR_ADD_AND_ASSIGN: {
 			struct dag_node* left = expr_intermediate_representation(e->left, dn_table);
@@ -173,7 +173,7 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 			union dag_value val = {0};
 			return create_dag_node(DAG_ADD_AND_ASSIGN, left, right, val);
 		}
-		case EXPR_ISUB_AND_ASSIGN: {
+		case EXPR_SUB_AND_ASSIGN: {
 			struct dag_node* left = expr_intermediate_representation(e->left, dn_table);
 			struct dag_node* right = expr_intermediate_representation(e->right, dn_table);
 
@@ -185,7 +185,7 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 			union dag_value val = {0};
 			return create_dag_node(DAG_SUB_AND_ASSIGN, left, right, val);
 		}
-		case EXPR_IMUL_AND_ASSIGN: {
+		case EXPR_MUL_AND_ASSIGN: {
 			struct dag_node* left = expr_intermediate_representation(e->left, dn_table);
 			struct dag_node* right = expr_intermediate_representation(e->right, dn_table);
 
@@ -197,7 +197,7 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 			union dag_value val = {0};
 			return create_dag_node(DAG_MUL_AND_ASSIGN, left, right, val);
 		}
-	 	case EXPR_IDIV_AND_ASSIGN: {
+	 	case EXPR_DIV_AND_ASSIGN: {
 	 		struct dag_node* left = expr_intermediate_representation(e->left, dn_table);
 	 		struct dag_node* right = expr_intermediate_representation(e->right, dn_table);
 
@@ -316,19 +316,23 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 			union dag_value val = { .name = e->name};
 			return create_dag_node(DAG_ARRAY, left, right, val);
 		}
-		case EXPR_ARRAY_VAL:
+		case EXPR_ARRAY_VAL: {
 			union dag_value val = { .integer_value = e->integer_value};
 			return create_dag_node(DAG_INTEGER_VALUE, NULL, NULL, val);
+		}
 		
-		case EXPR_INTEGER:
+		case EXPR_INTEGER: {
 			union dag_value val = { .integer_value = e->integer_value};
-			return create_dag_node(DAG_INTEGER_VALUE, NULL, NULL, val);
-		case EXPR_CHARACTER:
-			union dag_value val = { .char_value = e->char_value};
+			return create_dag_node(DAG_INTEGER_VALUE, NULL, NULL, val);	
+		}
+		case EXPR_CHARACTER: {
+			union dag_value val = { .char_value = e->ch_expr};
 			return create_dag_node(DAG_CHARACTER, NULL, NULL, val);
-		case EXPR_NAME:
+		}
+		case EXPR_NAME: {
 			union dag_value val = { .name = e->name};
 			return create_dag_node(DAG_NAME, NULL, NULL, val);
+		}
 
 		case EXPR_ASSIGNMENT: {
 			struct dag_node* left = expr_intermediate_representation(e->left, dn_table);
@@ -457,11 +461,12 @@ struct basic_block* initialize_block() {
 		free(block);
 		return NULL;
 	}
+	block->block_freed = false;
 
 	return block;
 }
 
-struct CFG* initialize_cfg() {
+struct CFG* initialize_CFG() {
 	struct CFG* cfg = malloc(sizeof(struct CFG));
 	if (!cfg) {
 		fprintf(stderr, "Error: Could not allocate space for CFG\n");
@@ -516,9 +521,11 @@ struct DAG* create_block_dag() {
 
 void process_stmt_for_blocks(struct CFG* cfg, struct stmt* s, int* current_block_index) {
 	if (!cfg || !s || *current_block_index >= cfg->block_count) return;
+	printf("In Process statements for blocks function\n");
 
 	switch (s->kind) {
 		case STMT_BLOCK: {
+			printf("In STMT BLOCK case\n");
 			struct stmt* curr = s->body;
 			while (curr) {
 				process_stmt_for_blocks(cfg, curr, current_block_index);
@@ -528,6 +535,7 @@ void process_stmt_for_blocks(struct CFG* cfg, struct stmt* s, int* current_block
 		}
 
 		case STMT_IF: {
+			printf("In STMT IF case\n");
 			struct basic_block* condition_block = initialize_block();
 			if (!condition_block) return;
 			cfg->blocks[*current_block_index] = condition_block;
@@ -574,6 +582,7 @@ void process_stmt_for_blocks(struct CFG* cfg, struct stmt* s, int* current_block
 		}
 
 		case STMT_IF_ELSE: {
+			printf("In STMT_IF_ELSE case\n");
 			struct basic_block* condition_block = initialize_block();
 			if (!condition_block) return;
 			cfg->blocks[*current_block_index] = condition_block;
@@ -769,29 +778,45 @@ void process_stmt_for_blocks(struct CFG* cfg, struct stmt* s, int* current_block
 		}
 
 		case STMT_DECL: {
-			struct basic_block* current_block = cfg->blocks[*current_block_index - 1];
-			if (!current_block) {
-				current_block = initialize_block();
-				if (!current_block) return;
-				cfg->blocks[*current_block_index] = current_block;
-				(*current_block_index)++;
-				cfg->block_count = *current_block_index;
+			printf("In STMT_DECL case\n");
+			struct basic_block* current_block = NULL;
+			if (*current_block_index == 0) {
+				current_block = cfg->blocks[0];
+				if (!current_block) {
+					fprintf(stderr, "Error: entry block is NULL\n");
+					return NULL;
+				}
 
-				if (*current_block_index > 1) {
-					struct basic_block* prev_block = cfg->blocks[*current_block_index - 2];
-					prev_block->successors[prev_block->successor_count++] = current_block;
-					current_block->predecessors[current_block->predecessor_count++] = prev_block;
+			} else {
+				current_block = cfg->blocks[*current_block_index - 1];
+				if (!current_block) {
+					printf("No valid current block, initializing new block\n");
+					current_block = initialize_block();
+					if (!current_block) return;
+					cfg->blocks[*current_block_index] = current_block;
+					(*current_block_index)++;
+					cfg->block_count = *current_block_index;
+					if (*current_block_index > 1) {
+						struct basic_block* prev_block = cfg->blocks[*current_block_index - 2];
+						if (prev_block) {
+							prev_block->successors[prev_block->successor_count++] = current_block;
+							current_block->predecessors[current_block->predecessor_count++] = prev_block;
+						}
+					}
 				}
 			}
-
+			printf("Moving on\n");
 			if (s->decl && s->decl->value) {
+				printf("here\n");
 				if (!current_block->dag) {
+					printf("Now here\n");
 					current_block->dag = create_block_dag();
 					if (!current_block->dag) {
 						free_block(current_block);
 						return;
 					}
 				}
+				printf("current_block->dag is not null\n");
 				struct dag_node* node = expr_intermediate_representation(s->decl->value, &current_block->local_table);
 				if (node && current_block->dag->node_count < DAG_NODE_COUNT) {
 					current_block->dag->nodes[current_block->dag->node_count++] = node;
@@ -800,6 +825,7 @@ void process_stmt_for_blocks(struct CFG* cfg, struct stmt* s, int* current_block
 			break;
 		}
 		case STMT_EXPR: {
+			printf("In STMT_EXPR case\n");
 			struct basic_block* current_block = cfg->blocks[*current_block_index - 1];
 			if (!current_block) {
 				current_block = initialize_block();
@@ -840,42 +866,51 @@ void process_stmt_for_blocks(struct CFG* cfg, struct stmt* s, int* current_block
 
 void identify_basic_blocks(struct CFG* cfg, struct stmt* s) {
 	if (!cfg || !s) return;
+	printf("In basic blocks, going to invoke function to construct blocks\n");
 
 	int current_block_index = 0;
-
+	printf("Now im here\n");
 	process_stmt_for_blocks(cfg, s, &current_block_index);
 }
 
 struct CFG* build_function_CFG(struct decl* function_decl) {
+	printf("About to initialize CFG\n");
 	struct CFG* cfg = initialize_CFG();
 	if (!cfg) return NULL;
+	printf("Initialized CFG\n");
 
 	struct basic_block* entry_block = initialize_block();
+	printf("Initialized block\n");
 	if (!entry_block) {
-		free_cfg(cfg);
+		free_CFG(cfg);
 		return NULL;
 	}
 
 	cfg->blocks[0] = entry_block;
 	cfg->block_count = 1;
 
+	printf("About to identify basic blocks\n");
 	if (function_decl->code) {
+
 		identify_basic_blocks(cfg, function_decl->code);
 	}
-
-	connect_basic_blocks(cfg);
+	printf("Returning CFG\n");
 
 	return cfg;
 }
 
 struct CFG* build_CFG(struct decl* d) {
-	if (!d) return NULL;
+	if (!d) {
+		fprintf(stderr, "Error: Cannot build CFG because d is NULL\n");
+		return NULL;
+	}
 
 	struct CFG* head = NULL;
 	struct CFG* current = NULL;
+	printf("About to build CFG\n");
 
 	while (d) {
-		if (d->type == TYPE_FUNCTION) {
+		if (d->type->kind == TYPE_FUNCTION) {
 			struct CFG* function_cfg = build_function_CFG(d);
 			if (function_cfg) {
 				if (!head) {
@@ -896,9 +931,17 @@ struct CFG* build_CFG(struct decl* d) {
 
 void free_dag_node(struct dag_node* node) {
 	if (!node || node->freed) return;
-	node->freed = true; 
-	if (node->left) free_dag_node(node->left);
-	if (node->right) free_dag_node(node->right);
+
+	if (node->left && !node->left->freed) {
+		node->left->freed = true;
+		free_dag_node(node->left);
+	}
+
+	if (node->right && !node->right->freed) {
+		node->right->freed = true;
+		free_dag_node(node->right);
+	}
+	node->freed = true;
 	free(node);
 }	
 
@@ -929,6 +972,25 @@ void free_block(struct basic_block* block) {
 		free(block->dag->nodes);
 		free(block->dag);
 	}
+
+	if (block->predecessors) {
+		for (int i = 0; i < block->predecessor_count; i++) {
+			if (block->predecessors[i]->block_freed) continue;
+
+			free_block(block->predecessors[i]);
+			block->predecessors[i]->block_freed = true;
+		}
+	}
+
+	if (block->successors) {
+		for (int i = 0; i < block->successor_count; i++) {
+			if (block->successors[i]->block_freed) continue;
+
+			free_block(block->successors[i]);
+			block->successors[i]->block_freed = true;
+		}
+	}
+
 	free(block->predecessors);
 	free(block->successors);
 	free(block);

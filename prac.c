@@ -1,5 +1,3 @@
-#include "testheader.h"
-#include "codegen.h"
 #define MAX_NUMBERS 100
 #define MAX_SHOES 200
 #define NUMBER 5

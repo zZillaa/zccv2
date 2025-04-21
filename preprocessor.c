@@ -257,8 +257,10 @@ void skip_whitespace(Preprocessor* preprocessor) {
 }
 
 Preprocessor* preprocess(char* source) {
+    printf("I am here in the preprocessor\n");
     Preprocessor* preprocessor = init_preprocessor(source);
-
+    printf("Initialized preprocessor\n");
+    printf("Source file: %s\n", source);
     while (!is_at_end(preprocessor)) {
         skip_whitespace(preprocessor);
 
@@ -281,6 +283,7 @@ Preprocessor* preprocess(char* source) {
     }
     replace_macros(preprocessor);
     replace_includes(preprocessor);
+    printf("About to return preprocessor\n");
 
     return preprocessor;
 }
@@ -391,11 +394,8 @@ void replace_includes(Preprocessor* preprocessor) {
 
     while (!is_at_end(preprocessor)) {
         if (peek(preprocessor) == '#') {
-<<<<<<< HEAD
-=======
             // *write_pos = peek(preprocessor);
             // write_pos++;
->>>>>>> 738747bf37787cc5322c2abbab3ad98c186e9803
             advance_preprocessor(preprocessor);
 
             char* directive = get_identifier(preprocessor);
