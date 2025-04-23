@@ -588,10 +588,42 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     }
 }
 
-void codegen_dag(struct RegisterTable* sregs, struct AsmWriter* writer, struct DAG* dag) {}
+void codegen_dag_node(struct RegisterTable* sregs, struct AsmWriter* writer, struct dag_node* node) {
+	if (!sregs || !writer || !node) return;
+
+	char buffer[256];
+
+	switch (node->kind) {
+		case DAG_ADD: {
+			codegen_dag_node(sregs, writer, node->left);
+			codegen_dag_node(sregs, writer, node->left);
+		}
+		case DAG_SUB: {}
+		case DAG_MUL: {}
+		case DAG_DIV: {}
+		case DAG_ADD_AND_ASSIGN: {}
+		case DAG_SUB_AND_ASSIGN: {}
+		case DAG_MUL_AND_ASSIGN: {}
+		case DAG_INCREMENT: {}
+		case DAG_DECREMENT: {}
+
+		case DAG_INTEGER_VALUE: {
+			node->reg = scratch_alloc(sregs);
+			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
+				scratch_name(sregs, node->reg),
+				symbol_codegen(node->symbol);
+		}
+		case DAG_NOT: {}
+
+	}
+}
 
 void codegen_block(struct RegisterTable* sregs, struct AsmWriter* writer, struct basic_block* block) {
-
+	if (block->dag && block->dag->nodes) {
+		for (int i = 0; i < block->dag->node_count; i++) {
+			codegen_dag_node(block->dag->nodes[i]);
+		}
+	}
 }
 
 void codegen_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg) {

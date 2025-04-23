@@ -48,6 +48,7 @@ struct dag_node {
 	struct dag_node* right;
 	union dag_value u;
 	bool freed;
+	int reg;
 };
 
 struct dag_node_table {
