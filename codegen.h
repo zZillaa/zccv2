@@ -1,11 +1,12 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 #include "ast.h"
+#include "IR.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-
+#define MAX_SCRATCH_REGISTERS 10
 typedef enum register_state_t {
 	REGISTER_FREE,
 	REGISTER_USED
@@ -66,7 +67,7 @@ struct RegisterTable* create_register_table();
 
 struct AsmWriter* create_asm_writer(const char* filename);
 long get_pos_from_directive(struct AsmWriter* writer, section_t directive_kind);
-void asm_write_to_section(struct AsmWriter* writer, const char* content, int section_type);
+void asm_to_write_section(struct AsmWriter* writer, const char* content, section_t directive_kind);
 void free_asm_writer(struct AsmWriter* writer);
 
 
@@ -79,6 +80,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d, bool is_local);
 
 void codegen_dag_node(struct RegisterTable* sregs, struct AsmWriter* writer, struct dag_node* node);
+void codegen_dag(struct RegisterTable* sregs, struct AsmWriter* writer, struct DAG* dag);
 void codegen_block(struct RegisterTable* sregs, struct AsmWriter* writer, struct basic_block* block);
 void codegen_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg);
 void process_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg);

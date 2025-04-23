@@ -1,7 +1,4 @@
-#define _POSIX_C_SOURCE 200909L
 #include "codegen.h"
-
-#define MAX_SCRATCH_REGISTERS 10
 
 static int label_counter = 0;
 
@@ -79,7 +76,7 @@ long get_pos_from_directive(struct AsmWriter* writer, section_t directive_kind) 
 	}
 }
 
-void asm_to_write_section(struct AsmWriter* writer, char* content, section_t directive_kind) {
+void asm_to_write_section(struct AsmWriter* writer, const char* content, section_t directive_kind) {
     if (!writer || !content) return;
 
     // Always append to the current position
@@ -99,41 +96,6 @@ void asm_to_write_section(struct AsmWriter* writer, char* content, section_t dir
         writer->current_text_pos = ftell(writer->file);
     }
 }
-// void asm_to_write_section(struct AsmWriter* writer, char* content, section_t directive_kind) {
-// 	if (!writer || !content) return;
-
-// 	long current_position = ftell(writer->file);
-// 	long insertion_point = get_pos_from_directive(writer, directive_kind);
-// 	printf("Insertion point: %ld\n", insertion_point);
-// 	char* buffer = NULL;
-// 	long remaining_size = 0;
-
-// 	if (fseek(writer->file, 0, SEEK_END) == 0) {
-// 		long end_pos = ftell(writer->file);
-// 		remaining_size = end_pos - insertion_point;
-// 		if (remaining_size > 0) {
-// 			buffer = malloc(remaining_size);
-// 			fseek(writer->file, insertion_point, SEEK_SET);
-// 			fread(buffer, 1, remaining_size, writer->file);
-// 		}
-// 	}
-
-// 	fseek(writer->file, insertion_point, SEEK_SET);
-// 	fprintf(writer->file, "%s\n", content);
-
-// 	if (directive_kind == DATA_DIRECTIVE) {
-// 		writer->current_data_pos = ftell(writer->file);
-// 	} else {
-// 		writer->current_text_pos = ftell(writer->file);
-// 	}
-
-// 	if (buffer && remaining_size > 0) {
-// 		fwrite(buffer, 1, remaining_size, writer->file);
-// 		free(buffer);
-// 	}
-
-// 	fseek(writer->file, current_position, SEEK_SET);
-// }
 
 int scratch_alloc(struct RegisterTable* sregs) {
 	if (!sregs) return -1;
@@ -589,41 +551,191 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 }
 
 void codegen_dag_node(struct RegisterTable* sregs, struct AsmWriter* writer, struct dag_node* node) {
-	if (!sregs || !writer || !node) return;
+	if (!node || node->freed || node->reg != - 1) return;
+
+	node->reg = -1;
+	if (node->left) codegen_dag_node(sregs, writer, node->left);
+	if (node->right) codegen_dag_node(sregs, writer, node->right);
 
 	char buffer[256];
 
 	switch (node->kind) {
-		case DAG_ADD: {
-			codegen_dag_node(sregs, writer, node->left);
-			codegen_dag_node(sregs, writer, node->left);
-		}
-		case DAG_SUB: {}
-		case DAG_MUL: {}
-		case DAG_DIV: {}
-		case DAG_ADD_AND_ASSIGN: {}
-		case DAG_SUB_AND_ASSIGN: {}
-		case DAG_MUL_AND_ASSIGN: {}
-		case DAG_INCREMENT: {}
-		case DAG_DECREMENT: {}
-
 		case DAG_INTEGER_VALUE: {
 			node->reg = scratch_alloc(sregs);
+
+			if (node->reg == -1) return;
+
+			snprintf(buffer, sizeof(buffer), "\tmov %s, %d",
+				scratch_name(sregs, node->reg), node->u.integer_value);
+			
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			break;
+		} 
+
+		case DAG_NAME: {
+			if (!node->symbol) {
+				fprintf(stderr, "Error: No symbol for DAG_NAME node\n");
+				return;
+			}
+			node->reg = scratch_alloc(sregs);
+			if (node->reg == -1) return;
 			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
-				scratch_name(sregs, node->reg),
-				symbol_codegen(node->symbol);
+				scratch_name(sregs, node->reg), symbol_codegen(node->symbol));
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			break;
 		}
-		case DAG_NOT: {}
+
+		case DAG_ASSIGN: {
+			if (!node->left || !node->right || node->left->kind != DAG_NAME || !node->left->symbol) {
+				fprintf(stderr, "Error: Invalid assignment node\n");
+				return;
+			}
+
+			if (node->right->reg == -1) {
+				fprintf(stderr, "Error: Right operand not evaluated\n");
+				return;
+			}
+			snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
+				symbol_codegen(node->left->symbol), scratch_name(sregs, node->right->reg));
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			node->reg = node->right->reg;
+			break;
+		}
+
+		case DAG_ADD:
+        case DAG_SUB:
+        case DAG_MUL: {
+            if (!node->left || !node->right || node->left->reg == -1 || node->right->reg == -1) {
+                fprintf(stderr, "Error: Invalid arithmetic node\n");
+                return;
+            }
+            if (node->kind == DAG_MUL) {
+                int save_reg = -1;
+                if (strcmp(scratch_name(sregs, node->left->reg), "rax") != 0) {
+                    save_reg = scratch_alloc(sregs);
+                    if (save_reg == -1) {
+                        fprintf(stderr, "Error: No free registers for MUL\n");
+                        return;
+                    }
+                    snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
+                             scratch_name(sregs, save_reg));
+                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+                }
+
+                if (strcmp(scratch_name(sregs, node->left->reg), "rax") != 0) {
+                    snprintf(buffer, sizeof(buffer), "\tmov rax, %s",
+                             scratch_name(sregs, node->left->reg));
+                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+                }
+
+                snprintf(buffer, sizeof(buffer), "\tmul %s",
+                         scratch_name(sregs, node->right->reg));
+                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+                node->reg = scratch_alloc(sregs);
+                if (node->reg == -1) {
+                    fprintf(stderr, "Error: No free registers for MUL result\n");
+                    return;
+                }
+                if (strcmp(scratch_name(sregs, node->reg), "rax") != 0) {
+                    snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
+                             scratch_name(sregs, node->reg));
+                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+                }
+
+                if (save_reg != -1) {
+                    snprintf(buffer, sizeof(buffer), "\tmov rax, %s",
+                             scratch_name(sregs, save_reg));
+                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+                    scratch_free(sregs, save_reg);
+                }
+            } else {
+             
+                snprintf(buffer, sizeof(buffer), "\t%s %s, %s",
+                         (node->kind == DAG_ADD) ? "add" : "sub",
+                         scratch_name(sregs, node->left->reg),
+                         scratch_name(sregs, node->right->reg));
+                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+                node->reg = node->left->reg;
+                scratch_free(sregs, node->right->reg);
+            }
+            scratch_free(sregs, node->left->reg);
+            break;
+        }
+
+		default:
+			break;
 
 	}
 }
 
-void codegen_block(struct RegisterTable* sregs, struct AsmWriter* writer, struct basic_block* block) {
-	if (block->dag && block->dag->nodes) {
-		for (int i = 0; i < block->dag->node_count; i++) {
-			codegen_dag_node(block->dag->nodes[i]);
-		}
+void codegen_dag(struct RegisterTable* sregs, struct AsmWriter* writer, struct DAG* dag) {
+	if (!sregs || !writer || !dag) return;
+
+	char buffer[256];
+
+	for (int i = 0; i < dag->node_count; i++) {
+		struct dag_node* node = dag->nodes[i];
+		if (!node || node->freed) continue;
+		codegen_dag_node(sregs, writer, node);
 	}
+}
+
+void codegen_block(struct RegisterTable* sregs, struct AsmWriter* writer, struct basic_block* block) {
+    if (!sregs || !writer || !block || block->emitted_x86_assembly) return;
+
+    char buffer[256];
+
+    // Generate a unique label for the block
+    int label = label_create();
+    snprintf(buffer, sizeof(buffer), "%s:", label_name(label));
+    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+    // Generate code for the block's DAG
+    if (block->dag) {
+        codegen_dag(sregs, writer, block->dag);
+    }
+
+    // Handle control flow to successors
+    if (block->successor_count > 0) {
+        if (block->successor_count == 1) {
+            snprintf(buffer, sizeof(buffer), "\tjmp %s",
+                     label_name(block->successors[0]->label));
+            asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        } else if (block->successor_count == 2) {
+            if (block->dag && block->dag->node_count > 0) {
+                struct dag_node* cond_node = block->dag->nodes[0];
+                if (cond_node && cond_node->reg != -1) {
+                    snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
+                             scratch_name(sregs, cond_node->reg));
+                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+                    const char* jump_inst = NULL;
+                    switch (cond_node->kind) {
+                        case DAG_LESS: jump_inst = "jl"; break;
+                        case DAG_GREATER: jump_inst = "jg"; break;
+                        case DAG_LESS_EQUAL: jump_inst = "jle"; break;
+                        case DAG_GREATER_EQUAL: jump_inst = "jge"; break;
+                        case DAG_EQUAL: jump_inst = "je"; break;
+                        case DAG_NOT_EQUAL: jump_inst = "jne"; break;
+                        default: jump_inst = "jnz"; break;
+                    }
+                    snprintf(buffer, sizeof(buffer), "\t%s %s",
+                             jump_inst, label_name(block->successors[0]->label));
+                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+                    snprintf(buffer, sizeof(buffer), "\tjmp %s",
+                             label_name(block->successors[1]->label));
+                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+                    scratch_free(sregs, cond_node->reg);
+                }
+            }
+        }
+    }
+
+    block->emitted_x86_assembly = true;
+    block->label = label;
 }
 
 void codegen_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg) {

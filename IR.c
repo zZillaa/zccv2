@@ -331,7 +331,11 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 		}
 		case EXPR_NAME: {
 			union dag_value val = { .name = e->name};
-			return create_dag_node(DAG_NAME, NULL, NULL, val);
+			struct dag_node* node = create_dag_node(DAG_NAME, NULL, NULL, val);
+			if (node) {
+				node->symbol = e->symbol;
+			}
+			return node;
 		}
 
 		case EXPR_ASSIGNMENT: {
@@ -342,7 +346,11 @@ struct dag_node* expr_intermediate_representation(struct expr* e, struct dag_nod
 				return NULL;
 			}
 			union dag_value val = {0};
-			return create_dag_node(DAG_ASSIGN, left, right, val);
+			struct dag_node* node = create_dag_node(DAG_ASSIGN, left, right, val);
+			if (node) {
+				node->symbol = e->symbol;
+			}
+			return node;
 		}
 		case EXPR_CALL:
 		case EXPR_ARG:
@@ -362,8 +370,16 @@ struct dag_node* stmt_intermediate_representation(struct stmt* s, struct dag_nod
 	switch (s->kind) {
 		case STMT_EXPR:
 			return expr_intermediate_representation(s->expr, dn_table);
-		case STMT_DECL:
-			return s->decl->value ? expr_intermediate_representation(s->decl->value, dn_table) : NULL;
+		case STMT_DECL: {
+			if (s->decl && s->decl->value) {
+				struct dag_node* node = expr_intermediate_representation(s->decl->value, dn_table);
+				if (node) {
+					node->symbol = s->decl->symbol;
+				}
+				return node;
+			}
+			return NULL;
+		}
 		case STMT_RETURN:
 			return s->expr ? expr_intermediate_representation(s->expr, dn_table) : NULL;
 		case STMT_IF:
@@ -462,7 +478,7 @@ struct basic_block* initialize_block() {
 		return NULL;
 	}
 	block->block_freed = false;
-	block->emitted_x86_assmebly = false;
+	block->emitted_x86_assembly = false;
 	
 	return block;
 }
@@ -875,13 +891,12 @@ void identify_basic_blocks(struct CFG* cfg, struct stmt* s) {
 }
 
 struct CFG* build_function_CFG(struct decl* function_decl) {
-	printf("About to initialize CFG\n");
 	struct CFG* cfg = initialize_CFG();
 	if (!cfg) return NULL;
 	printf("Initialized CFG\n");
 
 	struct basic_block* entry_block = initialize_block();
-	printf("Initialized block\n");
+	printf("CFG initialized, block_count: %d\n", cfg->block_count);
 	if (!entry_block) {
 		free_CFG(cfg);
 		return NULL;
@@ -896,7 +911,7 @@ struct CFG* build_function_CFG(struct decl* function_decl) {
 		identify_basic_blocks(cfg, function_decl->code);
 	}
 	printf("Returning CFG\n");
-
+	printf("CFG built with %d blocks\n", cfg->block_count);
 	return cfg;
 }
 

@@ -49,6 +49,7 @@ struct dag_node {
 	union dag_value u;
 	bool freed;
 	int reg;
+	struct symbol* symbol;
 };
 
 struct dag_node_table {
@@ -73,6 +74,7 @@ struct basic_block {
 
 	bool block_freed;
 	bool emitted_x86_assembly;
+	int label;
 };
 
 struct CFG {
@@ -96,7 +98,6 @@ struct DAG* build_DAG(struct decl* d);
 
 void process_stmt_for_blocks(struct CFG* cfg, struct stmt* body, int* current_block_index);
 void identify_basic_blocks(struct CFG* cfg, struct stmt* s);
-void connect_basic_blocks(struct CFG* cfg);
 struct DAG* create_block_dag();
 struct basic_block* initialize_block();
 struct CFG* initialize_CFG();
