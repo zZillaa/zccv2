@@ -1,5 +1,7 @@
 #include "codegen.h"
 
+#define MAX_QUEUE_SIZE 100
+
 static int label_counter = 0;
 
 struct Register* create_register(register_state_t state, const char* name) {
@@ -428,26 +430,333 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     char buffer[56];
     switch (s->kind) {
         case STMT_DECL:
-            decl_codegen(sregs, writer, s->decl, true);  // Pass true for local declarations
+            decl_codegen(sregs, writer, s->decl, true); 
             break;
 
         case STMT_EXPR:
         	expr_codegen(sregs, writer, s->expr);
+        	if (s->expr->reg != -1) {
+        		scratch_free(sregs, s->expr->reg);
+        	}
+        	break;        	
+
+        case STMT_IF: {
+        	int end_label = label_create();
+
+        	if (s->expr) {
+        		expr_codegen(sregs, writer, s->expr);
+
+        		snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
+        			scratch_name(sregs, s->expr->reg));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+        		snprintf(buffer, sizeof(buffer), "\tje %s", label_name(end_label));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+        		scratch_free(sregs, s->expr->reg);
+        	}
+
+        	if (s->body) {
+        		stmt_codegen(sregs, writer, s->body);
+        	}
+
+        	snprintf(buffer, sizeof(buffer), "%s:", label_name(end_label));
+        	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        }
+        break;
+
+    	case STMT_IF_ELSE: {
+    		int else_label = label_create();
+    		int end_label = label_create();
+
+    		if (s->expr) {
+    			expr_codegen(sregs, writer, s->expr);
+
+    			snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
+    				scratch_name(sregs, s->expr->reg));
+    			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+    			snprintf(buffer, sizeof(buffer), "\tje %s", label_name(else_label));
+    			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+    			scratch_free(sregs, s->expr->reg);
+    		}
+
+    		if (s->body) {
+    			stmt_codegen(sregs, writer, s->body);
+    		}
+
+    		snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(end_label));
+    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+    		snprintf(buffer, sizeof(buffer), "%s:", label_name(else_label));
+    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+    		if (s->else_body) {
+    			stmt_codegen(sregs, writer, s->else_body);
+    		}
+
+    		snprintf(buffer, sizeof(buffer), "%s:", label_name(end_label));
+    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    	}
+    	break;
+
+        case STMT_FOR: {
+        	int loop_start = label_create();
+        	int loop_end = label_create();
+
+        	if (s->init_expr) {
+        		expr_codegen(sregs, writer, s->init_expr);
+        		if (s->init_expr->reg != -1) {
+        			scratch_free(sregs, s->init_expr->reg);
+        		}
+        	}
+
+        	snprintf(buffer, sizeof(buffer), "%s: ", label_name(loop_start));
+        	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+        	if (s->expr) {
+        		expr_codegen(sregs, writer, s->expr);
+        		snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
+        			scratch_name(sregs, s->expr->reg));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        		snprintf(buffer, sizeof(buffer), "\tje %s", label_name(loop_end));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        		scratch_free(sregs, s->expr->reg);
+        	}
+
+        	if (s->body) {
+        		stmt_codegen(sregs, writer, s->body);
+        	}
+
+        	if (s->next_expr) {
+        		expr_codegen(sregs, writer, s->next_expr);
+        		if (s->next_expr->reg != -1) {
+        			scratch_free(sregs, s->next_expr->reg);
+        		}
+        	}
+
+        	snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(loop_start));
+        	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+        	snprintf(buffer, sizeof(buffer), "%s:", label_name(loop_end));
+        	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        }
+        break;
+
+    	case STMT_WHILE: {
+    		int loop_start = label_create();
+    		int loop_end = label_create();
+
+    		snprintf(buffer, sizeof(buffer), "%s:", label_name(loop_start));
+    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+    		if (s->expr) {
+    			expr_codegen(sregs, writer, s->expr);
+    			snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
+    				scratch_name(sregs, s->expr->reg));
+    			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    			snprintf(buffer, sizeof(buffer), "\tje %s",
+    				label_name(loop_end));
+    			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    			scratch_free(sregs, s->expr->reg);
+    		}
+
+    		if (s->body) {
+    			stmt_codegen(sregs, writer, s->body);
+    		}
+
+    		snprintf(buffer, sizeof(buffer), "\tjmp %s",
+    			label_name(loop_start));
+    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+    		snprintf(buffer, sizeof(buffer), "%s:", label_name(loop_end));
+    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    	}
+    	break;
+
+        case STMT_RETURN:
+			if (s->expr) {
+				expr_codegen(sregs, writer, s->expr);
+				snprintf(buffer, sizeof(buffer), "\tmov rax, %s",
+					scratch_name(sregs, s->expr->reg));
+				
+				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+				scratch_free(sregs, s->expr->reg);
+			}
+			snprintf(buffer, sizeof(buffer), "\n\tleave\n\tret");
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
         	break;
 
-        // case STMT_RETURN:
-		// 	expr_codegen(sregs, writer, s->expr);
-		// 	snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, s->expr->reg));
-		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-		// 	scratch_free(sregs, s->expr->reg);
+        // case STMT_PRINT: {
+        // 	if (!s->expr) break;
 
-		// 	snprintf(buffer, sizeof(buffer), "\n\tleave\n\tret");
-		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        // 	struct FormatQueue* fmt_queue = create_format_queue(MAX_QUEUE_SIZE);
+        // 	struct ArgumentQueue* arg_queue = create_argument_queue(MAX_QUEUE_SIZE);
 
-        // 	break;
+        // 	if (s->expr->kind == EXPR_STRING) {
+        // 		enqueue_format(fmt_queue, s->expr->string_literal);
+        // 		expr_codegen(sregs, writer, s->expr);
+        // 	} else {
+        // 		fprintf(stderr, "STMT_PRINT expects a string literal format\n");
+        // 		free_format_queue(fmt_queue);
+        // 		free_argument_queue(arg_queue);
+        // 	}
+
+        // 	struct expr* arg = s->expr->right;
+        // 	while (arg && arg->kind == EXPR_ARG) {
+        // 		enqueue_arg(arg_queue, arg->left);
+        // 		arg = arg->right;
+        // 	}
+        // }
     }
     
     stmt_codegen(sregs, writer, s->next);
+}
+
+struct FormatQueue* create_format_queue(int capacity) {
+	struct FormatQueue* q = malloc(sizeof(struct FormatQueue));
+	if (!q) {
+		fprintf(stderr, "Error: Failed to allocate space for format queue\n");
+		return NULL;
+	}
+
+	q->capacity = capacity;
+	q->size = 0;
+	q->front = -1;
+	q->rear = -1;
+	q->items = malloc(sizeof(char*) * capacity);
+	if (!q->items) {
+		fprintf(stderr, "Error: Failed to allocate space for format queue items\n");
+		free(q);
+		return NULL;
+	}
+
+	for (int i = 0; i < q->capacity; i++) {
+		q->items[i] = NULL;
+	}
+
+	return q;
+}
+
+void enqueue_format(struct FormatQueue* q, const char* format) {
+	if (!q || !format) return;
+
+	if (q->size >= q->capacity) {
+		printf("Format queue is full\n");
+		return;
+	} else {
+		if (q->front == -1) {
+			q->front = 0;
+		}
+
+		q->rear++;
+		q->items[q->rear] = format;
+		q->size++;
+	}
+}
+
+char* dequeue_format(struct FormatQueue* q) {
+	char* item;
+	if (is_format_queue_empty(q)) {
+		printf("Queue is empty\n");
+		item = NULL;
+	} else {
+		item = q->items[q->front];
+		q->front++;
+		q->size--;
+		if (q->front > q->rear) {
+			q->front = q->rear = -1;
+		}
+	}
+
+	return item;
+}
+
+int is_format_queue_empty(struct FormatQueue* q) {
+	if (q->rear == -1) return 1;
+
+	return 0;
+}
+
+struct ArgumentQueue* create_argument_queue(int capacity) {
+	struct ArgumentQueue* q = malloc(sizeof(struct ArgumentQueue));
+	if (!q) {
+		fprintf(stderr, "Error: Failed to allocate space for argument space\n");
+		return NULL;
+	}
+
+	q->capacity = capacity;
+	q->size = 0;
+	q->front = -1;
+	q->rear = -1;
+	q->items = malloc(sizeof(struct expr*) * capacity);
+	if (!q->items) {
+		fprintf(stderr, "Error: Failed to allocate space for argument queue items\n");
+		free(q);
+		return NULL;
+	}
+
+	return q;
+}
+
+void enqueue_arg(struct ArgumentQueue* q, struct expr* e) {
+	if (!q || !e) return;
+
+	if (q->size >= q->capacity) {
+		printf("Argument queue is full, come back later\n");
+		return;
+	} else {
+		if (q->front == -1) {
+			q->front = 0;
+		}
+
+		q->rear++;
+		q->items[q->rear] = e;
+		q->size++;
+	}
+}
+
+struct expr* dequeue_arg(struct ArgumentQueue* q) {
+	struct expr* e;
+	if (is_arg_queue_empty(q)) {
+		printf("Arg queue is empty\n");
+		e = NULL;
+	} else {
+		e = q->items[q->front];
+		q->front++;
+		q->size--;
+		if (q->front > q->rear) {
+			q->front = q->rear = -1;
+		}
+	}	
+	return e;
+}
+
+int is_arg_queue_empty(struct ArgumentQueue* q) {
+	if (q->rear == -1) return 1;
+
+	return 0;
+}
+
+void free_format_queue(struct FormatQueue* queue) {
+	if (!queue) return;
+
+	for (int i = 0; i < queue->capacity; i++) {
+		if (queue->items[i]) {
+			free(queue->items[i]);
+		}
+	}
+	free(queue->items);
+	free(queue);
+}
+
+void free_argument_queue(struct ArgumentQueue* queue) {
+	if (!queue) return;
+
+	if (queue->items) free(queue->items);
+	free(queue);
 }
 
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d, bool is_local) {

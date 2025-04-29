@@ -8,6 +8,8 @@ int function() {
 	int z = MAX_NUMBERS + y;
 	int w = z + MAX_SHOES;
 
+	for (int i = 0; i < 10; i++) {}
+
 	return w;
 }
 

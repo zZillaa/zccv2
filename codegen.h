@@ -6,7 +6,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+
 #define MAX_SCRATCH_REGISTERS 10
+
+
 typedef enum register_state_t {
 	REGISTER_FREE,
 	REGISTER_USED
@@ -53,6 +56,35 @@ typedef enum {
 	TEXT_DIRECTIVE,
 } section_t;
 
+// For printf calls
+struct FormatQueue {
+	char** items;
+	int capacity;
+	int size;
+	int front;
+	int rear;
+};
+
+struct ArgumentQueue {
+	struct expr** items;
+	int capacity;
+	int size;
+	int front;
+	int rear;
+};
+
+struct FormatQueue* create_format_queue(int capacity);
+void enqueue_format(struct FormatQueue* q, const char* format);
+char* dequeue_format(struct FormatQueue* q);
+int is_format_queue_empty(struct FormatQueue* q);
+void free_format_queue(struct FormatQueue* q);
+
+struct ArgumentQueue* create_arg_queue(int capacity);
+void enqueue_arg(struct ArgumentQueue* q, struct expr* e);
+struct expr* dequeue_arg(struct ArgumentQueue* q);
+int is_arg_queue_empty(struct ArgumentQueue* q);
+void free_argument_queue(struct ArgumentQueue* q);
+//
 
 byte_size_t get_byte_type(expr_t kind);
 request_byte_t get_request_type(byte_size_t kind);

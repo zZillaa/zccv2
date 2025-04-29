@@ -37,16 +37,16 @@ int main(int argc, char** argv) {
         program_resolve(ast, stack);    
         program_typecheck(ast, stack);
 
-        struct CFG* cfg = build_CFG(ast->declaration);
+        // struct CFG* cfg = build_CFG(ast->declaration);
 
         struct RegisterTable* sregs = create_register_table();
         struct AsmWriter* writer = create_asm_writer("output.asm");
-        // // decl_codegen(sregs, writer, ast->declaration, false);
-        process_CFG(sregs, writer, cfg);
+        decl_codegen(sregs, writer, ast->declaration, false);
+        // process_CFG(sregs, writer, cfg);
         
         free_asm_writer(writer);
         free_register_table(sregs);
-        free_all_CFG(cfg);
+        // free_all_CFG(cfg);
         free_stack(stack);
         free_ast(ast);
         free_tokens(tokens);
