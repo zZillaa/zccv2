@@ -237,44 +237,28 @@ size_t get_param_bytes(struct param_list* params) {
 }
 
 size_t get_num_bytes(struct decl* d, struct type* t) {
-	if (!t || !d) return 0;
-
-	if (d->type) {
-		type_t kind = d->type->kind;
-		switch (kind) {
-			case TYPE_INTEGER:
-				printf("here is the size of an int: %zu\n",sizeof(int));
-			return sizeof(int);
-
-			case TYPE_CHARACTER:
-			case TYPE_BOOLEAN:
-				return sizeof(char);
-
-			case TYPE_ARRAY:
-				size_t element_size;
-				if (d->type->subtype->kind == TYPE_INTEGER) {
-					element_size = sizeof(int);
-				} else if (d->type->subtype->kind == TYPE_CHARACTER ||
-						d->type->subtype->kind == TYPE_BOOLEAN) {
-					element_size = sizeof(char);
-				} else {
-					return 0;
-				}
-
-				int array_size = 0;
-				if (d->value && d->value->left) {
-					array_size = d->value->left->integer_value;
-				}
-				
-				return element_size * array_size;
-			default:
-				return 0;
-		}
-	}
-
-	return 0;
-
+    if (!t) return 0;
+    
+    switch (t->kind) {
+        case TYPE_INTEGER:
+            return sizeof(int);
+        case TYPE_CHARACTER:
+        case TYPE_BOOLEAN:
+            return sizeof(char);
+        case TYPE_ARRAY:
+            if (t->subtype) {
+                size_t element_size = get_num_bytes(NULL, t->subtype);
+                if (d && d->value && d->value->left) {
+                    int array_size = d->value->left->integer_value;
+                    return element_size * array_size;
+                } 
+            }
+            return 0;
+        default:
+            return 0;
+    }
 }
+
 
 void param_list_resolve(struct param_list* params, struct stack* stack) {
 	if (!params || !stack) return;
@@ -300,8 +284,21 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 	switch (e->kind) {
 		case EXPR_ARRAY:
 		case EXPR_NAME: {
+			if (!e->name) {
+				fprintf(stderr, "Error: EXPR_ARRAY/EXPR_NAME node with no name\n");
+				break;
+			}
 			struct symbol* symbol = scope_lookup(stack, e->name, &found_scope);
-			e->symbol = symbol;
+			if (symbol) {
+				e->symbol = symbol;
+				printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
+					e->kind == EXPR_ARRAY ? "EXPR_ARRAY": "EXPR_NAME",
+					e->name, found_scope,
+					symbol->kind == SYMBOL_LOCAL ? "LOCAL": "GLOBAL");
+			} else {
+				fprintf(stderr, "Error: Symbol %s not found for %s\n",
+					e->name, e->kind == EXPR_ARRAY ? "EXPR_ARRAY" : "EXPR_NAME");
+			}
 			break;		
 		}
 
@@ -346,13 +343,13 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 	while (stmt) {
 		switch (stmt->kind) {
 			case STMT_DECL: {
-				printf("Here i am with statement declaration\n");
+				printf("Resolving STMT_DECL\n");
 				if (stmt->decl) decl_resolve(stmt->decl, stack);
 				break;
 			}
 
 			case STMT_EXPR: {
-				printf("Here I am with statement expression\n");
+				printf("Resolving STMT_EXPR\n");
 				if (stmt->expr) expr_resolve(stmt->expr, stack);
 				break;
 			}
@@ -378,10 +375,11 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 			case STMT_WHILE:
 			case STMT_FOR: {
 				scope_enter(stack, NULL);
-
+				printf("IN STMT_FOR\n");
 				if (stmt->decl) {
 					decl_resolve(stmt->decl, stack);
 				} else if (stmt->init_expr) {
+					printf("Resolving init_expr in STMT_FOR\n");
 					expr_resolve(stmt->init_expr, stack);
 				}
 
@@ -880,7 +878,17 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                 break;
 
             case STMT_FOR:
-                if (s->init_expr) {
+            	scope_enter(stack, NULL);
+            	if (s->decl) {
+            		if (s->decl && !s->symbol) {
+            			symbol_t kind = SYMBOL_LOCAL;
+            			s->decl->symbol = create_symbol(kind, s->decl->type, s->decl->name);
+            			if (s->decl->symbol) {
+            				scope_bind(stack, s->decl->symbol);
+            			}
+            		}
+            		decl_typecheck(s->decl, stack);
+            	} else if (s->init_expr) {
                     struct type* t_init = expr_typecheck(s->init_expr, stack);
                     type_delete(t_init);
                 }
@@ -899,10 +907,9 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                 }
 
                 if (s->body) {
-                    scope_enter(stack, NULL);
                     stmt_typecheck(s->body, stack);
-                    scope_exit(stack);
                 }
+                scope_exit(stack);
                 break;
 
             case STMT_WHILE:

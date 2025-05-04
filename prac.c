@@ -2,29 +2,24 @@
 #define MAX_SHOES 200
 #define NUMBER 5
 
+int arr[4] = {0, 23, 2};
+int values[3] = {3, 4, 5};
+
 int function() {
-	int x = 2;
-	int y = 20;
-	int z = MAX_NUMBERS + y;
-	int w = z + MAX_SHOES;
+	int arr[4] = {0, 1, 2};
 
-	for (int i = 0; i < 10; i++) {}
+	for (int i = 0; i < 4; i++) {
+		arr[i] = 6;
+	}
 
-	return w;
+
+	return 0;
 }
 
-int function2() {
-	int x = 10;
-	int y = 20;
-	int z = x + y;
-	return z;
-}
-
-int function3() {
-	int x = 10;
-}
 
 int main() {
-	int x = NUMBER;
+	int x = 5;
+	int arr[5] = {10, 20, 30, 40, 50};
+
 	return 0;
 }
