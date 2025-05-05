@@ -408,7 +408,12 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			break;
 
 		case EXPR_SUBSCRIPT:
-			break;
+			snprintf(buffer, sizeof(buffer), "\tmov [%s + %ld], %d",
+				symbol_codegen(e->left->symbol),
+
+				e->right->integer_value);
+
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 		case EXPR_ARRAY_VAL:
 			break;
