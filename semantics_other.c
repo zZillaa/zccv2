@@ -264,14 +264,18 @@ void param_list_resolve(struct param_list* params, struct stack* stack) {
 	if (!params || !stack) return;
 
 	int param_index = 0;
+	printf("Resolving parameter list\n");
 
 	while (params) {
 		symbol_t kind = SYMBOL_PARAM;
 		params->symbol = create_symbol(kind, params->type, params->name);
-		if (params->symbol){
+		if (params->symbol) {
 			scope_bind(stack, params->symbol);
 			params->symbol->s.param_index = param_index++;
-		} 
+			printf("Bound parameter: %s\n", params->name);
+		} else {
+			fprintf(stderr, "Failed to create symbol for parameter: %s\n", params->name);
+		}
 		params = params->next;
 	} 
 }
@@ -288,6 +292,8 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 				fprintf(stderr, "Error: EXPR_ARRAY/EXPR_NAME node with no name\n");
 				break;
 			}
+
+			printf("Looking up symbol for name: %s\n", e->name);
 			struct symbol* symbol = scope_lookup(stack, e->name, &found_scope);
 			if (symbol) {
 				e->symbol = symbol;
@@ -298,6 +304,7 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 			} else {
 				fprintf(stderr, "Error: Symbol %s not found for %s\n",
 					e->name, e->kind == EXPR_ARRAY ? "EXPR_ARRAY" : "EXPR_NAME");
+				debug_print_scope_stack(stack, "While looking up symbol");
 			}
 			break;		
 		}
@@ -314,7 +321,7 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 			}
 
 			struct symbol* left_symbol = scope_lookup(stack, e->left->name, &found_scope);
-
+			
 			if (left_symbol) {
 				e->left->symbol = left_symbol;
 				printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
@@ -431,20 +438,38 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 
 			case STMT_WHILE:
 			case STMT_FOR: {
+				printf("Processing STMT_FOR\n");
 				scope_enter(stack, NULL);
-				printf("IN STMT_FOR\n");
+
 				if (stmt->decl) {
+					printf("Resolving declaration in STMT_FOR\n");
 					decl_resolve(stmt->decl, stack);
+					if (stmt->decl->symbol) {
+						printf("For loop declaration resolved: %s (kind=%d)\n",
+							stmt->decl->name, stmt->decl->symbol->kind);
+					} else {
+						printf("WARNING: For loop declaration didn't create symbol\n");
+					}
+
 				} else if (stmt->init_expr) {
 					printf("Resolving init_expr in STMT_FOR\n");
 					expr_resolve(stmt->init_expr, stack);
 				}
 
-				if (stmt->expr) expr_resolve(stmt->expr, stack);
+				if (stmt->expr) {
+					printf("Resolving init_expr in STMT_FOR\n");
+					expr_resolve(stmt->expr, stack);
+				}
 
-				if (stmt->next_expr) expr_resolve(stmt->next_expr, stack);
+				if (stmt->next_expr) {
+					printf("Resolving update expr in STMT_FOR\n");
+					expr_resolve(stmt->next_expr, stack);
+				}
 
-				if (stmt->body) stmt_resolve(stmt->body, stack);
+				if (stmt->body) {
+					printf("Resolving body in STMT_FOR\n");
+					stmt_resolve(stmt->body, stack);
+				}
 				
 				scope_exit(stack);
 				break;
@@ -497,6 +522,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 			continue;
 		}
 
+		printf("Resolving declaration: %s\n", d->name);
 		symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL: SYMBOL_GLOBAL;
 		struct symbol* existing_symbol = scope_lookup_current(stack, d->name);
 
@@ -510,6 +536,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 
 		d->symbol = create_symbol(kind, d->type, d->name);
 		if (!d->symbol) {
+			fprintf(stderr, "Failed to create symbol for %s\n", d->name);
 			d = d->next;
 			continue;
 		}
@@ -520,7 +547,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 		}
 
 		scope_bind(stack, d->symbol);
-
+		printf("Successfully created and bound symbol for %s\n", d->name);
 		if (d->value) {
 			expr_resolve(d->value, stack);
 
@@ -576,6 +603,10 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 						current = current->right;
 					}
 				}
+			}
+		} else if (d->type->kind == TYPE_INTEGER) {
+			if (d->value && d->value->kind == EXPR_INTEGER) {
+				expr_resolve(d->value, stack);
 			}
 		}
 		d = d->next;
