@@ -302,6 +302,55 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 			break;		
 		}
 
+		case EXPR_SUBSCRIPT: {
+			if (!e->left) {
+				fprintf(stderr, "Error: EXPR_SUBSCRIPT node is NULL\n");
+				break;
+			}
+
+			if (!e->left->name) {
+				fprintf(stderr, "Error: EXPR_SUBSCRIPT node with no identifier\n");
+				break;
+			}
+
+			struct symbol* left_symbol = scope_lookup(stack, e->left->name, &found_scope);
+
+			if (left_symbol) {
+				e->left->symbol = left_symbol;
+				printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
+					"EXPR_ARRAY",
+					e->left->name, found_scope,
+					left_symbol->kind == SYMBOL_LOCAL ? "LOCAL": "GLOBAL");
+			} else {
+				fprintf(stderr, "Error: Symbol %s not found for %s\n",
+					e->left->name, "EXPR_ARRAY");
+			}
+
+			if (!e->right) {
+				fprintf(stderr, "Error: EXPR_SUBSCRIPT node with no index node\n");
+				break;
+			}
+
+			switch (e->right->kind) {
+				case EXPR_NAME: {
+					struct symbol* right_symbol = scope_lookup(stack, e->right->name, &found_scope);
+					if (right_symbol) {
+						e->right->symbol = right_symbol; 
+						printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
+							"EXPR_NAME",
+							e->right->name, found_scope,
+							right_symbol->kind == SYMBOL_LOCAL ? "LOCAL" : "GLOBAL");
+					} else {
+						fprintf(stderr, "Error: Symbol %s not found for %s\n",
+							e->right->name, "EXPR_NAME");
+					}
+				}
+
+				case EXPR_INTEGER:
+					break;
+			}
+		}
+
 
 		case EXPR_INCREMENT:
 		case EXPR_DECREMENT: {
@@ -593,6 +642,17 @@ void free_stack(struct stack* stack) {
 bool type_equals(struct type* a, struct type* b) {
 	if (!a || !b) return false;
 
+	if (a->kind == TYPE_ARRAY) {
+		printf("a is of TYPE ARRAY\n");
+		if (!a->subtype) return false;
+		
+		if ((a->subtype && b->kind == TYPE_INTEGER) || (a->subtype && b->kind == TYPE_CHARACTER)) {
+			printf("This is true\n");
+			return true;
+		}
+		printf("I have returned\n");
+	}
+
 	if (a->kind == b->kind) {
 		switch (a->kind) {
 			case TYPE_INTEGER:
@@ -763,6 +823,9 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
         case EXPR_GREATER_EQUAL:
         case EXPR_EQUAL:
         case EXPR_NOT_EQUAL:
+        	printf("e->left type: %d\n", e->left->kind);
+        	printf("e->left name: %s\n", e->left->name);
+        	printf("e->right type: %d\n",e->right->kind);
             lt = expr_typecheck(e->left, stack);
             rt = expr_typecheck(e->right, stack);
             
@@ -773,6 +836,21 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
                 result = type_create(TYPE_BOOLEAN, NULL, NULL);
             }
             break;
+
+        case EXPR_SUBSCRIPT:
+        	lt = expr_typecheck(e->left, stack);
+        	rt = expr_typecheck(e->right, stack);
+        	printf("IN EXPR_TYPECHECK FOR CASE: EXPR_SUBSCRIPT\n");
+        	printf("lt: %d\n", lt->kind);
+        	printf("rt: %d\n", rt->kind);
+
+        	if (!lt || !rt || !type_equals(lt, rt)) {
+        		fprintf(stderr, "Error: Type mismatch in EXPR_SUBSCRIPT\n");
+        		result = type_create(TYPE_UNKNOWN, NULL, NULL);
+        	} else {
+        		result = type_copy(lt);
+        	}
+        	break;
 
         case EXPR_ASSIGNMENT:
             lt = expr_typecheck(e->left, stack);

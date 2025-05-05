@@ -407,6 +407,9 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			// }
 			break;
 
+		case EXPR_SUBSCRIPT:
+			break;
+
 		case EXPR_ARRAY_VAL:
 			break;
 

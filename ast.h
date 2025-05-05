@@ -71,14 +71,14 @@ typedef enum {
     EXPR_BREAK,
     EXPR_CONTINUE,
 
-    EXPR_NAME, // 17
+    EXPR_NAME, // 19
     EXPR_ASSIGNMENT,
     
     EXPR_CALL,
     EXPR_ARG,
     
     EXPR_SUBSCRIPT,
-    EXPR_INTEGER, // 22
+    EXPR_INTEGER, // 24
     EXPR_FLOAT,
     EXPR_CHARACTER,
     EXPR_BOOLEAN,

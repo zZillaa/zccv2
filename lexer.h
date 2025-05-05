@@ -11,9 +11,9 @@
 typedef long long integer_t;
 typedef enum TokenType {
     // token keywords
-    TOKEN_INT,
-    TOKEN_CHAR,
-    TOKEN_BOOLEAN,
+    TOKEN_INT, 
+    TOKEN_CHAR, 
+    TOKEN_BOOLEAN, 
     TOKEN_IF,
     TOKEN_ELSE,
     TOKEN_FOR,
@@ -42,7 +42,7 @@ typedef enum TokenType {
     TOKEN_INCREMENT,
     TOKEN_DECREMENT,
 
-    TOKEN_LEFT_BRACKET,
+    TOKEN_LEFT_BRACKET, // 27
     TOKEN_RIGHT_BRACKET,
     TOKEN_LEFT_PARENTHESES,
     TOKEN_RIGHT_PARENTHESES,
@@ -59,7 +59,7 @@ typedef enum TokenType {
     TOKEN_ASTERISK,
 
 
-    TOKEN_ASSIGNMENT,
+    TOKEN_ASSIGNMENT, // 40
     TOKEN_GREATER,
     TOKEN_LESS,
     TOKEN_GREATER_EQUAL,

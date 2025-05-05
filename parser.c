@@ -201,6 +201,19 @@ struct expr* parse_factor(Token* tokens, int* tokenIdx) {
             expr_node = expr_create(EXPR_NAME, NULL, NULL);
             expr_node->name = strdup(tokens[*tokenIdx-1].value.string);
 
+            if (tokens[*tokenIdx].type == TOKEN_LEFT_BRACKET) {
+                (*tokenIdx)++;
+                struct expr* index_expr = parse_expression(tokens, tokenIdx);
+                if (tokens[*tokenIdx].type != TOKEN_RIGHT_BRACKET) {
+                    fprintf(stderr, "Error: Expected ']' in array subscript\n");
+                    return NULL;
+                }
+                (*tokenIdx)++;
+                expr_node = expr_create(EXPR_SUBSCRIPT, expr_node, index_expr);      
+                printf("EXPR SUBSCRIPT NODE LEFT KIND: %d\n", expr_node->left->kind);
+                printf("EXPR SUBSCRIPT NODE RIGHT KIND: %d\n", expr_node->right->kind);
+            }
+
             if (tokens[*tokenIdx].type == TOKEN_INCREMENT ||
                 tokens[*tokenIdx].type == TOKEN_DECREMENT) {
                 expr_t op_kind = get_expr_type(&tokens[*tokenIdx]);
@@ -286,6 +299,24 @@ struct expr* parse_additive(Token* tokens, int* tokenIdx) {
 
 struct expr* parse_expression(Token* tokens, int* tokenIdx) {
     struct expr* expr_left = parse_additive(tokens, tokenIdx);
+    printf("IN PARSE EXPRESSION\n");
+    if (tokens[*tokenIdx].type == TOKEN_ASSIGNMENT ||
+        tokens[*tokenIdx].type == TOKEN_ADD_AND_ASSIGN ||
+        tokens[*tokenIdx].type == TOKEN_SUBTRACT_AND_ASSIGN ||
+        tokens[*tokenIdx].type == TOKEN_MULTIPLY_AND_ASSIGN ||
+        tokens[*tokenIdx].type == TOKEN_DIVIDE_AND_ASSIGN) {
+        
+        printf("TOKEN TYPE: %d\n", tokens[*tokenIdx].type);
+        expr_t op_kind = get_expr_type(&tokens[*tokenIdx]);
+        (*tokenIdx)++;
+        
+        struct expr* expr_right = parse_expression(tokens, tokenIdx);
+        expr_left = expr_create(op_kind, expr_left, expr_right);
+        printf("RETURNING FROM PARSE EXPRESSION\n");
+        printf("e->left kind: %d\n", expr_left->left->kind);
+        printf("e->right kind: %d\n", expr_left->right->kind);
+        return expr_left;
+    }
 
     while (tokens[*tokenIdx].type == TOKEN_LESS || tokens[*tokenIdx].type == TOKEN_GREATER ||
         tokens[*tokenIdx].type == TOKEN_LESS_EQUAL || tokens[*tokenIdx].type == TOKEN_GREATER_EQUAL
@@ -327,6 +358,11 @@ struct stmt* parse_block(Token* tokens, int* tokenIdx) {
     struct stmt* current = NULL;
 
     while (tokens[*tokenIdx].type != TOKEN_RIGHT_BRACE) {
+        if (tokens[*tokenIdx].type == TOKEN_SEMICOLON) {
+            (*tokenIdx)++;
+            continue;
+        }
+        
         struct stmt* new_stmt = parse_statement(tokens, tokenIdx);
         if (!new_stmt) {
             fprintf(stderr, "Error: Unable to parse new statement\n");
@@ -512,16 +548,29 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
         }
         case TOKEN_ID: {
             struct expr* expr = parse_expression(tokens, tokenIdx);
+            printf("FINISHED PARSING STATEMENT STARTING WITH TOKEN_ID\n");
+            printf("EXPR KIND: %d\n", expr->kind);
+            if (expr->name) {
+                printf("Expression name: %s\n", expr->name);
+            }
 
             stmt = stmt_create(STMT_EXPR, NULL, NULL, expr, NULL, NULL, NULL, NULL);
             break;
         }
+
         case TOKEN_RETURN: {
             (*tokenIdx)++;
             struct expr* return_expr = NULL;
 
             if (tokens[*tokenIdx].type != TOKEN_SEMICOLON) {
                 return_expr = parse_expression(tokens, tokenIdx);
+                if (tokens[*tokenIdx].type != TOKEN_SEMICOLON) {
+                    fprintf(stderr, "Error: Expected semicolon after return expression\n");
+                    return NULL;
+                }
+                (*tokenIdx)++;
+            } else {
+                (*tokenIdx)++;
             }
             
             stmt = stmt_create(STMT_RETURN, NULL, NULL, return_expr, NULL, NULL, NULL, NULL);
@@ -531,10 +580,14 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
         // DEFAULT CASE IS EXECUTING WHEN TOKEN_RETURN IS A VALID TOKEN TYPE?
         default:
             fprintf(stderr, "Error: Unexpected token in statement\n");
+            printf("Current Token type: %d\n", tokens[*tokenIdx].type);
+            printf("Prev token type: %d\n", tokens[*tokenIdx - 1].type);
+            printf("And token type one more time: %d\n", tokens[*tokenIdx - 2].type);
             return NULL;
     }
 
-    if (stmt->kind != STMT_IF && stmt->kind !=  STMT_FOR && stmt->kind != STMT_WHILE) {
+    if (stmt->kind != STMT_IF && stmt->kind != STMT_FOR && stmt->kind != STMT_WHILE &&
+        stmt->kind != STMT_DECL && stmt->kind != STMT_RETURN && stmt->kind != STMT_EXPR) {
         printf("Token type: %d\n", tokens[*tokenIdx].type);
         if (tokens[*tokenIdx].type != TOKEN_SEMICOLON) {
             fprintf(stderr, "Error: Expected semicolon\n");
@@ -705,6 +758,16 @@ struct decl* parse_array(Token* tokens, int* tokenIdx, char* name, struct type* 
 
         struct decl* d = decl_create(name, array_type, array_expr, NULL, NULL);
         printf("Successfully created array decl with type: %d EXPR KIND: %d and EXPR KIND VAL: %d\n " ,d->type->kind, d->value->kind, d->value->right->kind);
+
+        if (tokens[*tokenIdx].type != TOKEN_SEMICOLON) {
+            fprintf(stderr, "Error: Expected semicolon after array initialization\n");
+            type_delete(array_type);
+            free(array_expr->name);
+            free(array_expr);
+            free(d);
+            return NULL;
+        }
+        (*tokenIdx)++;
 
         return d;
     }
@@ -1028,6 +1091,15 @@ void print_expr(struct expr* expr, int indent) {
             printf("DECREMENT:\n");
             print_expr(expr->left, indent + 1);
             print_expr(expr->right, indent + 1);
+            break;
+        case EXPR_SUBSCRIPT:
+            printf("ARRAY SUBSCRIPT\n");
+            for (int i = 0; i < indent + 1; i++) printf(" ");
+            printf("ARRAY\n");
+            print_expr(expr->left, indent + 2);
+            for (int i = 0; i < indent + 1; i++) printf(" ");
+                printf("INDEX\n");
+            print_expr(expr->right, indent + 2);
             break;
         default:
             printf("UNKNOWN EXPRESSION TYPE\n");
