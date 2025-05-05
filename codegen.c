@@ -410,7 +410,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		case EXPR_SUBSCRIPT:
 			snprintf(buffer, sizeof(buffer), "\tmov [%s + %ld], %d",
 				symbol_codegen(e->left->symbol),
-
+				2,
 				e->right->integer_value);
 
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);

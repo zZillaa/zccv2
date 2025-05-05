@@ -321,6 +321,14 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 					"EXPR_ARRAY",
 					e->left->name, found_scope,
 					left_symbol->kind == SYMBOL_LOCAL ? "LOCAL": "GLOBAL");
+				printf("RELEVANT DATA IN SYMBOL\n");
+				printf("SYMBOL kind: %d\n", e->left->symbol->kind);
+				printf("TYPE STRUCTURE IN SYMBOL: %d\n", e->left->symbol->type);
+				if (e->left->symbol->type->subtype) {
+					printf("SUBTYPE STRUCTURE IN TYPE: %d\n", e->left->symbol->type->subtype);
+				}
+				printf("NAME: %s\n", e->left->symbol->name);
+
 			} else {
 				fprintf(stderr, "Error: Symbol %s not found for %s\n",
 					e->left->name, "EXPR_ARRAY");
