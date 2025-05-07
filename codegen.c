@@ -612,12 +612,21 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         	printf("In STMT_FOR, going to initialize expression\n");
         	if (s->decl) {
         		printf("In STMT_FOR, processing declaration\n");
+        		printf("DECLARATION NAME %s\n", s->decl->name);
         		decl_codegen(sregs, writer, s->decl, true);
         	} else if (s->init_expr) {
         		expr_codegen(sregs, writer, s->init_expr);
         		if (s->init_expr->reg != -1) {
         			scratch_free(sregs, s->init_expr->reg);
         		}
+        	}
+
+        	if (s->init_expr) {
+        		expr_codegen(sregs, writer, s->init_expr);
+        		snprintf(buffer, sizeof(buffer), "\tmov [%s], %d",
+        			symbol_codegen(s->init_expr->symbol),
+        			s->init_expr->integer_value);
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
         	}
 
         	snprintf(buffer, sizeof(buffer), "%s: ", label_name(loop_start));
