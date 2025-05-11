@@ -105,6 +105,7 @@ void free_asm_writer(struct AsmWriter* writer);
 
 int label_create();
 const char* label_name( int label );
+size_t compute_offset(struct symbol* symbol, int* index);
 
 char* symbol_codegen(struct symbol* sym);
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);

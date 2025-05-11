@@ -56,7 +56,6 @@ typedef enum TokenType {
 
     TOKEN_POUND,
     TOKEN_UNDERSCORE,
-    TOKEN_ASTERISK,
 
 
     TOKEN_ASSIGNMENT, // 40
@@ -96,6 +95,8 @@ typedef enum {
     KEYWORD_RETURN,
     KEYWORD_VOID,
     KEYWORD_STRUCT,
+    KEYWORD_BREAK,
+    KEYWORD_CONTINUE,
     KEYWORD_UNKNOWN
 } keyword_t;
 

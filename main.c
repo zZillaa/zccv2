@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
         if (preprocessor->output) {
             printf("Preprocessed output:\n---\n\"%s\"\n---\n", preprocessor->output);
         }
-
+        printf("I am here\n");
         Token* tokens = lexical_analysis(preprocessor->output);
         print_tokens(tokens);
         

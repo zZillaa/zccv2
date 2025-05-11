@@ -511,10 +511,12 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 	if (!d || !stack) return;
 
 	static int local_var_counter = 0;
+	static int total_offset = 0;
 
 	if (d->type && d->type->kind == TYPE_FUNCTION) {
 		local_var_counter = 0;
-	}
+		total_offset = 0;
+	} 
 
 	while (d) {
 		if (!d->name || !d->type) {
@@ -542,8 +544,25 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 		}
 
 		if (kind == SYMBOL_LOCAL) {
-			d->symbol->s.byte_offset = bytes;
-			d->symbol->s.local_var_index = local_var_counter++;
+			if (d->type->kind == TYPE_ARRAY) {
+				size_t element_size = get_num_bytes(d, d->type->subtype);
+				
+				d->symbol->s.byte_offset = total_offset + element_size;
+				total_offset += bytes;
+				printf("Total current offset: %zu\n", total_offset);
+			} else {
+				if (total_offset == 0) {
+					d->symbol->s.byte_offset = bytes;
+					total_offset += bytes;
+
+				} else {
+					d->symbol->s.byte_offset = total_offset + bytes;
+					total_offset += bytes;
+					d->symbol->s.local_var_index = local_var_counter++;
+
+				}
+
+			}
 		}
 
 		scope_bind(stack, d->symbol);
@@ -565,14 +584,15 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 			scope_enter(stack, NULL);
 			stmt_resolve(d->code, stack);
 
-			size_t total_local_bytes = 0;
 			struct symbol_table* local_scope = stack->symbol_tables[stack->top];
 			struct symbol* current = local_scope->symbol;
+			// size_t total_local_bytes = 0;
 
-			while (current) {
-				total_local_bytes += current->s.byte_offset;
-				current = current->next;
-			}
+			// while (current) {
+			// 	total_local_bytes += current->s.byte_offset;
+			// 	current = current->next;
+			// }
+			size_t total_local_bytes = total_offset;
 
 			size_t param_bytes = get_param_bytes(d->type->params);
 			total_local_bytes += param_bytes;
@@ -591,6 +611,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 
 			current_function = NULL;
 			local_var_counter = 0;
+			total_offset = 0;
 		} else if (d->type->kind == TYPE_ARRAY) {
 			if (d->value && d->value->kind == EXPR_ARRAY) {
 
@@ -681,16 +702,6 @@ void free_stack(struct stack* stack) {
 bool type_equals(struct type* a, struct type* b) {
 	if (!a || !b) return false;
 
-	if (a->kind == TYPE_ARRAY) {
-		printf("a is of TYPE ARRAY\n");
-		if (!a->subtype) return false;
-		
-		if ((a->subtype && b->kind == TYPE_INTEGER) || (a->subtype && b->kind == TYPE_CHARACTER)) {
-			printf("This is true\n");
-			return true;
-		}
-		printf("I have returned\n");
-	}
 
 	if (a->kind == b->kind) {
 		switch (a->kind) {
@@ -698,6 +709,7 @@ bool type_equals(struct type* a, struct type* b) {
 			case TYPE_CHARACTER:
 			case TYPE_BOOLEAN:
 			case TYPE_VOID:
+			case TYPE_STRING:	
 				return true;
 
 			case TYPE_FUNCTION:
@@ -877,17 +889,20 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
             break;
 
         case EXPR_SUBSCRIPT:
+        	printf("IN EXPR_TYPECHECK FOR CASE: EXPR_SUBSCRIPT\n");
         	lt = expr_typecheck(e->left, stack);
         	rt = expr_typecheck(e->right, stack);
-        	printf("IN EXPR_TYPECHECK FOR CASE: EXPR_SUBSCRIPT\n");
         	printf("lt: %d\n", lt->kind);
         	printf("rt: %d\n", rt->kind);
 
-        	if (!lt || !rt || !type_equals(lt, rt)) {
-        		fprintf(stderr, "Error: Type mismatch in EXPR_SUBSCRIPT\n");
+        	if (!lt || lt->kind != TYPE_ARRAY) {
+        		fprintf(stderr, "Error: Left operand of subscript must be an array\n");
+        		result = type_create(TYPE_UNKNOWN, NULL, NULL);
+        	} else if (!rt || rt->kind != TYPE_INTEGER) {
+        		fprintf(stderr, "Error: Array index must be an integer type\n");
         		result = type_create(TYPE_UNKNOWN, NULL, NULL);
         	} else {
-        		result = type_copy(lt);
+        		result = type_copy(lt->subtype);
         	}
         	break;
 

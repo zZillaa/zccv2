@@ -1,5 +1,5 @@
 #include "lexer.h"
-#define NUM_KEYWORDS 9
+#define NUM_KEYWORDS 12
 
 const char* keywords[] = {"int", "char", "boolean", "if", "else", "for", "while", "return", "void", "struct",
                     "break", "continue"};
@@ -23,6 +23,9 @@ TokenType keyword_to_token(Keyword* word) {
         case KEYWORD_WHILE: return TOKEN_WHILE;
         case KEYWORD_RETURN: return TOKEN_RETURN;
         case KEYWORD_VOID: return TOKEN_VOID;
+        case KEYWORD_STRUCT: return TOKEN_STRUCT;
+        case KEYWORD_BREAK: return TOKEN_BREAK;
+        case KEYWORD_CONTINUE: return TOKEN_CONTINUE; 
         default:
             fprintf(stderr, "Error: Unknown word\n");
             return TOKEN_UNKNOWN;
@@ -51,6 +54,7 @@ Token create_int_token(TokenType type, int value, int line, int column) {
 }
 
 Token create_string_token(TokenType type, char* value, int line, int column) {
+    
     Token token = create_token(type, line, column);
     token.value.string = strdup(value);
     return token;
@@ -82,6 +86,7 @@ bool add_token(Lexer* lexer, Token token) {
         if (!lexer->tokens) return false;
     }
 
+
     lexer->tokens[lexer->tokenIdx++] = token;
     return true;
 }
@@ -102,7 +107,7 @@ char peek_lexer(Lexer* lexer) {
 } 
 
 char peek_lexer_next(Lexer* lexer) {
-    if (lexer_at_end(lexer) || peek_lexer_next(lexer) == '\0') return '\0';
+    if (lexer_at_end(lexer) || *(lexer->end + 1) == '\0') return '\0';
     return *(lexer->end + 1);
 }
 
@@ -121,8 +126,8 @@ void identifier(Lexer* lexer) {
 
     int length = lexer->end - lexer->start;
     char* text = strndup(lexer->start, length);
-
     keyword_t keyword_type = get_keyword_type(text);
+
     if (keyword_type != KEYWORD_UNKNOWN) {
         Keyword word = { .type = keyword_type, .name = text};
         TokenType type = keyword_to_token(&word);
@@ -130,7 +135,6 @@ void identifier(Lexer* lexer) {
     } else {
         add_token(lexer, create_string_token(TOKEN_ID, text, lexer->line, lexer->column - length));
     }
-
     free(text);
 }   
 
@@ -262,7 +266,6 @@ void marker(Lexer* lexer) {
         case ',': type = TOKEN_COMMA; break;
         case '_': type = TOKEN_UNDERSCORE; break;
         case '#': type = TOKEN_POUND; break;
-        case '*': type = TOKEN_ASTERISK; break;
         case '"': type = TOKEN_DOUBLE_QUOTE; break;
         case '\'': type = TOKEN_SINGLE_QUOTE; break;
     }
@@ -282,11 +285,13 @@ bool skip_lexer_whitespace(Lexer* lexer) {
         }
         advance_lexer(lexer);
     }
+    return true;
 }
 
 Token* lexical_analysis(char* source) {
     Lexer* lexer = init_lexer(source);
     if (!lexer) return NULL;
+
 
     while (!lexer_at_end(lexer)) {
         skip_lexer_whitespace(lexer);
@@ -301,21 +306,43 @@ Token* lexical_analysis(char* source) {
             number(lexer);
         } else if (strchr("+-*/<>=!", peek_lexer(lexer))) {
             operator(lexer);
-        } else if (strchr("#*_;(){}[],", peek_lexer(lexer))) {
+        } else if (strchr("#_;(){}[],", peek_lexer(lexer))) {
             marker(lexer);
         } else {
             advance_lexer(lexer);
         }
     }
-
+    
     add_token(lexer, create_token(TOKEN_EOF, lexer->line, lexer->column));
     Token* tokens = lexer->tokens;
     free(lexer);
+    
     return tokens;
 }
 
 void free_token(Token* token) {
-    if (token->type == TOKEN_ID || token->type == TOKEN_KEYWORD) {
+    if (token->type == TOKEN_ID || 
+        token->type == TOKEN_KEYWORD ||
+        token->type == TOKEN_ADD_AND_ASSIGN ||
+        token->type == TOKEN_SUBTRACT_AND_ASSIGN ||
+        token->type == TOKEN_MULTIPLY_AND_ASSIGN ||
+        token->type == TOKEN_DIVIDE_AND_ASSIGN ||
+        token->type == TOKEN_INCREMENT ||
+        token->type == TOKEN_DECREMENT ||
+        token->type == TOKEN_EQUAL ||
+        token->type == TOKEN_NOT_EQUAL ||
+        token->type == TOKEN_LESS_EQUAL ||
+        token->type == TOKEN_GREATER_EQUAL ||
+        token->type == TOKEN_BOOLEAN ||
+        token->type == TOKEN_IF ||
+        token->type == TOKEN_ELSE ||
+        token->type == TOKEN_FOR ||
+        token->type == TOKEN_WHILE ||
+        token->type == TOKEN_RETURN ||
+        token->type == TOKEN_VOID ||
+        token->type == TOKEN_STRUCT ||
+        token->type == TOKEN_BREAK ||
+        token->type == TOKEN_CONTINUE) {
         free(token->value.string);
     }
 }
@@ -414,7 +441,6 @@ void print_tokens(Token* tokens) {
             case TOKEN_UNKNOWN:
                 printf("UNKNOWN\n");
                 break;
-            case TOKEN_ASTERISK:
             case TOKEN_POUND:
             case TOKEN_ADD:
             case TOKEN_SUBTRACT:

@@ -4,25 +4,21 @@
 
 
 int function() {
-	int arr[4] = {0, 1, 2};
+	int x = 2;
+	int y = 3;
+	y++;
+	x++;
+	y--;
 
-	int new_arr[5] = {1, 1, 1, 1, 1};
-	int dfe[9] = {0};
-	for (int i = 0; i < 4; i++) {
-		arr[i] = 2;
-	}
+	int arr[4] = {1, 2, 3, 4};
+	int new_arr[3] = {5, 6};
+
+	int z = 4;
+
+	arr[2] = 2;
 
 
-	for (int j = 0; j < 5; j++) {
-		new_arr[j] = 2; 
-	}
-
-
-	int y = 20;
-	int w = 30;
-	int z = MAX_NUMBERS + w;
-
-	return z;
+	return 0;
 }
 
 int main() {

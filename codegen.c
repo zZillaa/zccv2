@@ -145,13 +145,11 @@ char* symbol_codegen(struct symbol* sym) {
 	static char buffer[32];
 
 	switch (sym->kind) {
-		case SYMBOL_LOCAL:	
+		case SYMBOL_LOCAL:
+			size_t offset;	
 			if (sym->type->kind == TYPE_INTEGER) {
-				snprintf(buffer, sizeof(buffer), "rbp - %d", 4 * (sym->s.local_var_index + 1));
-			} else if (sym->type->kind == TYPE_ARRAY) {
-				size_t offset = 4 * (sym->s.local_var_index + 1);
-				snprintf(buffer, sizeof(buffer), "rbp - %zu", offset);
-			}
+				snprintf(buffer, sizeof(buffer), "rbp - %zu", sym->s.byte_offset);
+			} 
 			return buffer;  
 
 		case SYMBOL_PARAM:
@@ -238,79 +236,80 @@ char* bytes_to_string(byte_size_t kind) {
 	}
 }
 
+size_t compute_offset(struct symbol* symbol, int* index) {
+	if (!symbol) return 1;
+
+	size_t offset;
+	size_t element_size;
+
+	switch (symbol->kind) {
+		case SYMBOL_LOCAL: {
+			if (symbol->type->kind == TYPE_ARRAY) {
+				if (symbol->type->subtype && symbol->type->subtype->kind == TYPE_INTEGER) {
+					element_size = sizeof(int);
+					offset = symbol->s.byte_offset;
+					
+					if (index) {
+						offset += (*index) * element_size;
+					}
+
+					return offset;
+				}
+			} else if (symbol->type->kind == TYPE_INTEGER) {
+				return symbol->s.byte_offset;
+			}
+		}
+		default: {
+			fprintf(stderr, "Error: Unkown symbol kind in computing offset\n");
+			return 1;
+		}
+
+	}
+	return 1;
+}
+
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e) {
 	if (!sregs || !e) return;
 
 	char buffer[256];
 
 	switch (e->kind) {
-		// case EXPR_DIV:
-		// 	expr_codegen(sregs, writer, e->left);
-		// 	expr_codegen(sregs, writer, e->right);
+	 	// case EXPR_DIV: {
+	 	// 	expr_codegen(sregs, writer, e->left);
+	 	// 	expr_codegen(sregs, writer, e->right);
 
-		// 	snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
-		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+	 	// 	snprintf(buffer, sizeof(buffer), "\tidiv %s",
+	 	// 		scratch_name(sregs, e->right->reg));
+	 	// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+	 	
+	 	// 	break;
+	 	// }
 
-		// 	snprintf(buffer, sizeof(buffer), "\tcqo");
-		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-
-		// 	snprintf(buffer, sizeof(buffer), "\tidiv %s", scratch_name(sregs, e->right->reg));
-		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-
-		// 	e->reg = e->left->reg;
-		// 	snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, e->reg));
-		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-
-		// 	scratch_free(sregs, e->left->reg);
-		// 	scratch_free(sregs, e->right->reg);
-		// 	break; 
-
-		case EXPR_MUL:
+		case EXPR_MUL: {
 		    expr_codegen(sregs, writer, e->left);
 		    expr_codegen(sregs, writer, e->right);
 		    
-		    // Save the current value in rax if we need it
-		    int save_reg = -1;
-		    if (strcmp(scratch_name(sregs, e->left->reg), "rax") != 0) {
-		        save_reg = scratch_alloc(sregs);
-		        snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, save_reg));
-		        asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-		    }
-		    
-		    // Move left operand to rax if it's not already there
-		    if (strcmp(scratch_name(sregs, e->left->reg), "rax") != 0) {
-		        snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, e->left->reg));
-		        asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-		    }
-		    
-		    // Perform multiplication
-		    snprintf(buffer, sizeof(buffer), "\tmul %s", scratch_name(sregs, e->right->reg));
+		    snprintf(buffer, sizeof(buffer), "\timul %s, %s",
+		     scratch_name(sregs, e->left->reg),
+		     scratch_name(sregs, e->right->reg));
 		    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		    
-		    // Move result to a new register if needed
 		    e->reg = scratch_alloc(sregs);
 		    if (strcmp(scratch_name(sregs, e->reg), "rax") != 0) {
-		        snprintf(buffer, sizeof(buffer), "\tmov %s, rax", scratch_name(sregs, e->reg));
-		        asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+		    	snprintf(buffer, sizeof(buffer), "\tmov, %s, rax",
+		    		scratch_name(sregs, e->reg));
+		    	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		    }
-		    
-		    // Restore original rax value if we saved it
-		    if (save_reg != -1) {
-		        snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, save_reg));
-		        asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-		        scratch_free(sregs, save_reg);
-		    }
-		    
+
 		    scratch_free(sregs, e->left->reg);
 		    scratch_free(sregs, e->right->reg);
 		    break;
+		}
 		
 	 	case EXPR_SUB:
-		case EXPR_ADD:
+		case EXPR_ADD: {
 			expr_codegen(sregs, writer, e->left);
 			expr_codegen(sregs, writer, e->right);
-			// printf("Left child name: %s\n", e->left->name);
-			// printf("Right child name: %s\n", e->right->name);
 
 			snprintf(buffer, sizeof(buffer), "\t%s %s, %s", 
 				(e->kind == EXPR_ADD) ? "add" : "sub",
@@ -322,15 +321,9 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			e->reg = e->left->reg;
 			scratch_free(sregs, e->right->reg);
 
-			if (e->symbol) {
-				snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-					symbol_codegen(e->symbol),
-					scratch_name(sregs, e->reg));
-
-				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			}
-
 			break;
+
+		}
 
 		case EXPR_GREATER:
 		case EXPR_LESS: {
@@ -356,38 +349,59 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			break;
 		}
 
-		case EXPR_DECREMENT: 
-		case EXPR_INCREMENT: {
-			expr_codegen(sregs, writer, e->left);
-			snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-				symbol_codegen(e->left->symbol),
-				scratch_name(sregs, e->left->reg));
+		case EXPR_DECREMENT: {
+			snprintf(buffer, sizeof(buffer), "\tdec [%s]",
+				symbol_codegen(e->left->symbol));
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-		
-			e->reg = e->left->reg;
-			break;
+
+			break;	
+
 		}
+		
+		
+		case EXPR_INCREMENT: {
+			snprintf(buffer, sizeof(buffer), "\tinc [%s]",
+				symbol_codegen(e->left->symbol));
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
+			break;
 
+		} 
+		
 		case EXPR_ASSIGNMENT:
+			printf("In EXPR_ASSIGNMENT\n");
 		    expr_codegen(sregs, writer, e->right);
-		    snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-		        symbol_codegen(e->left->symbol),
-		        scratch_name(sregs, e->right->reg));
+		    
+		    if (e->left->kind == EXPR_SUBSCRIPT) {
+		    	size_t offset = compute_offset(e->left->left->symbol, &e->right->integer_value);
+		    	snprintf(buffer, sizeof(buffer), "\tmov [rbp - %zu], %s",
+		    		offset,
+		    		scratch_name(sregs, e->right->reg));
+		    	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-		    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-		    e->reg = e->right->reg;
-		    // scratch_free(sregs, e->right->reg);
+		    } else {
+			    snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
+			        symbol_codegen(e->left->symbol),
+			        scratch_name(sregs, e->right->reg));
+
+			    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			    e->reg = e->right->reg;
+			    printf("Leaving EXPR_ASSIGNMENT\n");
+
+		    }
+
 		    break;
 
 		case EXPR_NAME:
 			printf("In EXPR_NAME with %s\n", e->symbol->name);
+			
 			e->reg = scratch_alloc(sregs);
 			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
 				scratch_name(sregs, e->reg),
 				symbol_codegen(e->symbol));
-
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+				
+
 			break;
 
 		case EXPR_INTEGER:
@@ -397,28 +411,97 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				e->integer_value);
 
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-
-			// if (e->symbol && e->symbol->kind == SYMBOL_LOCAL) {
-			// 	snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-			// 		symbol_codegen(e->symbol),
-			// 		scratch_name(sregs, e->reg));
-
-			// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			// }
 			break;
 
-		case EXPR_SUBSCRIPT:
-			if (!e->left->symbol) {
-				printf("SYMBOL is NULL\n");
+		case EXPR_SUBSCRIPT: {
+			if (!e->left || !e->right) {
+				fprintf(stderr, "Error: Invalid EXPR_SUBSCRIPT node\n");
+				break;
 			}
 
-			snprintf(buffer, sizeof(buffer), "\tmov [%s + %ld], %d",
-				symbol_codegen(e->left->symbol),
-				2,
-				e->right->integer_value);
 
+			expr_codegen(sregs, writer, e->left);
+			if (!e->left->symbol) {
+				fprintf(stderr, "Error: No symbol for array in EXPR_SUBSCRIPT\n");
+				break;
+			}
+
+			if (e->right->kind == EXPR_NAME && !e->right->symbol && e->right->name) {
+				fprintf(stderr, "Warning: Index symbol is missing for variable '%s'\n", e->right->name);
+			}
+
+			expr_codegen(sregs, writer, e->right);
+			if (e->right->reg == -1) {
+				fprintf(stderr, "Error: No register allocated for index in EXPR_SUBSCRIPT\n");
+				break;
+			}
+
+			e->reg = scratch_alloc(sregs);
+			if (e->reg == -1) {
+				fprintf(stderr, "Error: No free register for EXPR_SUBSCRIPT\n");
+				break;
+			}
+
+			size_t element_size;
+			if (e->left->symbol->type->subtype) {
+				element_size = sizeof(int);
+			} else if (e->left->symbol->type->subtype == TYPE_CHARACTER ||
+				e->left->symbol->type->subtype == TYPE_BOOLEAN) {
+				element_size = sizeof(char);
+			} else {
+				fprintf(stderr, "Error: Unknown element type for array\n");
+				element_size = sizeof(int);
+			}
+
+			snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+				scratch_name(sregs, e->reg),
+				scratch_name(sregs, e->right->reg));
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+			if (element_size > 1) {
+				snprintf(buffer, sizeof(buffer), "\timul %s, %zu",
+					scratch_name(sregs, e->reg),
+					element_size
+				);
+				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			}
+
+			if (strcmp(scratch_name(sregs, e->reg), "rax") != 0) {
+				snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
+					scratch_name(sregs, e->reg));
+				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			}
+
+			int temp_reg = scratch_alloc(sregs);
+			if (temp_reg == -1) {
+				fprintf(stderr, "Error: No free register for temp in EXPR_SUBSCRIPT\n");
+				break;
+			}
+
+			size_t offset = compute_offset(e->left->symbol, &e->right->integer_value);
+			snprintf(buffer, sizeof(buffer), "\tlea %s, [rbp - %zu]",
+				scratch_name(sregs, temp_reg),
+				offset);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+			snprintf(buffer, sizeof(buffer), "\tadd %s, %s",
+				scratch_name(sregs, temp_reg),
+				scratch_name(sregs, e->reg));
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+			snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+				scratch_name(sregs, e->reg),
+				scratch_name(sregs, temp_reg));
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+
+			scratch_free(sregs, temp_reg);
+			scratch_free(sregs, e->right->reg);
+			scratch_free(sregs, e->left->reg);
+
 			break;
+		}
+
 
 		case EXPR_ARRAY_VAL:
 			break;
@@ -480,22 +563,12 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 					struct expr* current = e->right;
 					int index = 0;
 
-					size_t element_size;
-					if (e->symbol->type && e->symbol->type->subtype) {
-						if (e->symbol->type->subtype->kind == TYPE_INTEGER) {
-							element_size = sizeof(int);
-						} else if (e->symbol->type->subtype == TYPE_CHARACTER || 
-								   e->symbol->type->subtype == TYPE_BOOLEAN) {
-							element_size = sizeof(char);
-						} else {
-							element_size = 0;
-						}
-					}
-
+					snprintf(buffer, sizeof(buffer), "");
+					asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+					printf("I am here\n");
 					while (current) {
-						size_t offset = index * element_size;
-						snprintf(buffer, sizeof(buffer), "\tmov qword [%s + %ld], %d",
-							symbol_codegen(e->symbol),
+						size_t offset = compute_offset(e->symbol, &index);
+						snprintf(buffer, sizeof(buffer), "\tmov dword [rbp - %zu], %d",
 							offset,
 							current->integer_value
 						);
@@ -507,9 +580,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 					int diff = array_size - index;
 					while (diff > 0) {						
-						size_t offset = index * element_size;
-						snprintf(buffer, sizeof(buffer), "\tmov qword [%s + %ld], %d",
-							symbol_codegen(e->symbol),
+						size_t offset = compute_offset(e->symbol, &index);
+						snprintf(buffer, sizeof(buffer), "\tmov dword [rbp - %zu], %d",
 							offset,
 							0
 						);
@@ -518,12 +590,18 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 						diff--;
 					}
 
+					snprintf(buffer, sizeof(buffer), "");
+					asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
+					printf("Down here\n");
 				}
 			}
+			printf("Towards the end\n");
 			if (e->left->reg != -1) {
 				scratch_free(sregs, e->left->reg); 
 			}
+			printf("I am here\n");
+			free((void*)array_label);
 			break;
 	}
 }
@@ -638,7 +716,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         			scratch_name(sregs, s->expr->reg));
         		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-        		snprintf(buffer, sizeof(buffer), "\tje %s", label_name(loop_end));
+        		snprintf(buffer, sizeof(buffer), "\tjeq %s", label_name(loop_end));
         		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
         		scratch_free(sregs, s->expr->reg);
         	}
@@ -714,28 +792,6 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
         	break;
-
-        // case STMT_PRINT: {
-        // 	if (!s->expr) break;
-
-        // 	struct FormatQueue* fmt_queue = create_format_queue(MAX_QUEUE_SIZE);
-        // 	struct ArgumentQueue* arg_queue = create_argument_queue(MAX_QUEUE_SIZE);
-
-        // 	if (s->expr->kind == EXPR_STRING) {
-        // 		enqueue_format(fmt_queue, s->expr->string_literal);
-        // 		expr_codegen(sregs, writer, s->expr);
-        // 	} else {
-        // 		fprintf(stderr, "STMT_PRINT expects a string literal format\n");
-        // 		free_format_queue(fmt_queue);
-        // 		free_argument_queue(arg_queue);
-        // 	}
-
-        // 	struct expr* arg = s->expr->right;
-        // 	while (arg && arg->kind == EXPR_ARG) {
-        // 		enqueue_arg(arg_queue, arg->left);
-        // 		arg = arg->right;
-        // 	}
-        // }
     }
     
     stmt_codegen(sregs, writer, s->next);
