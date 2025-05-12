@@ -18,8 +18,6 @@ function:
 	mov rax, 3
 	mov [rbp - 8], rax
 	inc [rbp - 8]
-	inc [rbp - 4]
-	dec [rbp - 8]
 
 	mov dword [rbp - 12], 1
 	mov dword [rbp - 16], 2
@@ -35,6 +33,15 @@ function:
 	mov [rbp - 40], rax
 	mov rax, 2
 	mov [rbp - 20], rax
+	mov [rbp - 44], 0
+.L2: 
+	mov rbx, [rbp - 44]
+	mov r8, 10
+	cmp rbx, r8
+	jeq .L3
+	inc [rbp - 44]
+	jmp .L2
+.L3:
 	mov rax, 0
 
 	leave

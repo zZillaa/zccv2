@@ -7,8 +7,6 @@ int function() {
 	int x = 2;
 	int y = 3;
 	y++;
-	x++;
-	y--;
 
 	int arr[4] = {1, 2, 3, 4};
 	int new_arr[3] = {5, 6};
@@ -16,6 +14,10 @@ int function() {
 	int z = 4;
 
 	arr[2] = 2;
+
+	for (int i = 0; i < 10; i++) {
+
+	}
 
 
 	return 0;

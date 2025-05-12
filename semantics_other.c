@@ -242,9 +242,11 @@ size_t get_num_bytes(struct decl* d, struct type* t) {
     switch (t->kind) {
         case TYPE_INTEGER:
             return sizeof(int);
+
         case TYPE_CHARACTER:
         case TYPE_BOOLEAN:
             return sizeof(char);
+        
         case TYPE_ARRAY:
             if (t->subtype) {
                 size_t element_size = get_num_bytes(NULL, t->subtype);
@@ -294,18 +296,31 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 			}
 
 			printf("Looking up symbol for name: %s\n", e->name);
-			struct symbol* symbol = scope_lookup(stack, e->name, &found_scope);
-			if (symbol) {
-				e->symbol = symbol;
-				printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
-					e->kind == EXPR_ARRAY ? "EXPR_ARRAY": "EXPR_NAME",
-					e->name, found_scope,
-					symbol->kind == SYMBOL_LOCAL ? "LOCAL": "GLOBAL");
+			struct symbol* symbol = scope_lookup_current(stack, e->name);
+			if (!symbol) {
+				symbol = scope_lookup(stack, e->name, &found_scope);
+				if (symbol) {
+					e->symbol = symbol;
+					printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
+						e->kind == EXPR_ARRAY ? "EXPR_ARRAY": "EXPR_NAME",
+						e->name, found_scope,
+						symbol->kind == SYMBOL_LOCAL ? "LOCAL": "GLOBAL");
+					break;
+
+				} else {
+					fprintf(stderr, "Error: Symbol %s not found for %s\n",
+						e->name, e->kind == EXPR_ARRAY ? "EXPR_ARRAY" : "EXPR_NAME");
+					debug_print_scope_stack(stack, "While looking up symbol");
+					break;
+				}
 			} else {
-				fprintf(stderr, "Error: Symbol %s not found for %s\n",
-					e->name, e->kind == EXPR_ARRAY ? "EXPR_ARRAY" : "EXPR_NAME");
-				debug_print_scope_stack(stack, "While looking up symbol");
+				e->symbol = symbol;
+				printf("Resolved %s to symbol in current scope, kind=%s, offset=%zu\n",
+					e->name,
+					symbol->kind == SYMBOL_LOCAL ? "LOCAL" :"GLOBAL",
+					symbol->kind == SYMBOL_LOCAL ? symbol->s.byte_offset : 0);
 			}
+
 			break;		
 		}
 
@@ -444,6 +459,7 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 				if (stmt->decl) {
 					printf("Resolving declaration in STMT_FOR\n");
 					decl_resolve(stmt->decl, stack);
+					// expr_resolve(stmt->decl->value, stack);
 					if (stmt->decl->symbol) {
 						printf("For loop declaration resolved: %s (kind=%d)\n",
 							stmt->decl->name, stmt->decl->symbol->kind);
@@ -543,23 +559,31 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 			continue;
 		}
 
+		printf("Created symbol for %s\n", d->name);
+
 		if (kind == SYMBOL_LOCAL) {
 			if (d->type->kind == TYPE_ARRAY) {
-				size_t element_size = get_num_bytes(d, d->type->subtype);
+				size_t element_size;
+
+				if (d->type->subtype) {
+					element_size = get_num_bytes(d, d->type->subtype);
+				}
 				
 				d->symbol->s.byte_offset = total_offset + element_size;
 				total_offset += bytes;
 				printf("Total current offset: %zu\n", total_offset);
 			} else {
+				printf("Current symbol name is '%s'\n", d->symbol->name);
 				if (total_offset == 0) {
 					d->symbol->s.byte_offset = bytes;
 					total_offset += bytes;
+					printf("Symbol %s with offset %zu\n", d->symbol->name, d->symbol->s.byte_offset);
 
 				} else {
 					d->symbol->s.byte_offset = total_offset + bytes;
 					total_offset += bytes;
 					d->symbol->s.local_var_index = local_var_counter++;
-
+					printf("Symbol %s with offset %zu\n", d->symbol->name, d->symbol->s.byte_offset);
 				}
 
 			}
