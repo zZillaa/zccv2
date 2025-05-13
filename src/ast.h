@@ -28,6 +28,9 @@ typedef enum {
     STMT_WHILE,
     STMT_PRINT,
     STMT_RETURN,
+    STMT_CONTINUE,
+    STMT_BREAK,
+    STMT_ELSE,
     STMT_BLOCK
 } stmt_t;
 

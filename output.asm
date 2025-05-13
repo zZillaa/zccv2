@@ -41,7 +41,7 @@ function:
 	jg .L3
 	mov rbx, [rbp - 44]
 	imul rbx, 4
-	lea [rbp - 12], r9
+	lea r9, [rbp - 12]
 	add r9, rbx
 	mov r8, r9
 	mov rbx, 3
@@ -49,6 +49,8 @@ function:
 	jg .L4
 	mov rbx, 2
 	mov [rbp - 20], rbx
+	mov r8, 4
+	mov [rbp - 28], r8
 .L4:
 	inc [rbp - 44]
 	jmp .L2
@@ -63,8 +65,8 @@ main:
 	mov rbp, rsp
 	sub rsp, 16
 
-	mov r8, 20
-	mov [rbp - 4], r8
+	mov r9, 20
+	mov [rbp - 4], r9
 	mov rax, 0
 
 	leave

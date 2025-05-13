@@ -477,9 +477,9 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			}
 
 			size_t offset = compute_offset(e->left->symbol, &e->right->integer_value);
-			snprintf(buffer, sizeof(buffer), "\tlea [rbp - %zu], %s",
-				offset,
-				scratch_name(sregs, temp_reg));
+			snprintf(buffer, sizeof(buffer), "\tlea %s, [rbp - %zu]",
+				scratch_name(sregs, temp_reg),
+				offset);
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			snprintf(buffer, sizeof(buffer), "\tadd %s, %s",
@@ -657,6 +657,10 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
         	if (s->body) {
         		stmt_codegen(sregs, writer, s->body);
+        	}
+
+        	if (s->else_body) {
+        		stmt_codegen(sregs, writer, s->else_body);
         	}
 
         	snprintf(buffer, sizeof(buffer), "%s:", label_name(end_label));
