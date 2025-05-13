@@ -413,14 +413,16 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				
 			break;
 
-		case EXPR_INTEGER:
+		case EXPR_INTEGER: {
 			e->reg = scratch_alloc(sregs);
 			snprintf(buffer, sizeof(buffer), "\tmov %s, %d",
 				scratch_name(sregs, e->reg),
 				e->integer_value);
 
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			break;
+
+			break;			
+		}
 
 		case EXPR_SUBSCRIPT: {
 			if (!e->left || !e->right) {
@@ -428,22 +430,15 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				break;
 			}
 
+			if (e->right->kind == EXPR_NAME && !e->right->symbol && e->right->name) {
+				fprintf(stderr, "Warning: Index symbol is missing for variable '%s'\n", e->right->name);
+			}
 
-			// expr_codegen(sregs, writer, e->left);
-			// if (!e->left->symbol) {
-			// 	fprintf(stderr, "Error: No symbol for array in EXPR_SUBSCRIPT\n");
-			// 	break;
-			// }
-
-			// if (e->right->kind == EXPR_NAME && !e->right->symbol && e->right->name) {
-			// 	fprintf(stderr, "Warning: Index symbol is missing for variable '%s'\n", e->right->name);
-			// }
-
-			// expr_codegen(sregs, writer, e->right);
-			// if (e->right->reg == -1) {
-			// 	fprintf(stderr, "Error: No register allocated for index in EXPR_SUBSCRIPT\n");
-			// 	break;
-			// }
+			expr_codegen(sregs, writer, e->right);
+			if (e->right->reg == -1) {
+				fprintf(stderr, "Error: No register allocated for index in EXPR_SUBSCRIPT\n");
+				break;
+			}
 
 			e->reg = scratch_alloc(sregs);
 			if (e->reg == -1) {
@@ -462,29 +457,18 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				element_size = sizeof(int);
 			}
 
-			snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
-				scratch_name(sregs, e->reg),
-				scratch_name(sregs, e->right->reg));
-			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			// snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+			// 	scratch_name(sregs, e->reg),
+			// 	scratch_name(sregs, e->right->reg));
+			// asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			if (element_size > 1) {
 				snprintf(buffer, sizeof(buffer), "\timul %s, %zu",
-					scratch_name(sregs, e->reg),
+					scratch_name(sregs, e->right->reg),
 					element_size
 				);
 				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 			}
-
-			// snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
-			// 	,
-			// 	scratch_name(sregs, e->reg));
-			// asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-
-			// if (strcmp(scratch_name(sregs, e->reg), "rax") != 0) {
-			// 	snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
-			// 		scratch_name(sregs, e->reg));
-			// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			// }
 
 			int temp_reg = scratch_alloc(sregs);
 			if (temp_reg == -1) {
@@ -493,14 +477,14 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			}
 
 			size_t offset = compute_offset(e->left->symbol, &e->right->integer_value);
-			snprintf(buffer, sizeof(buffer), "\tlea %s, [rbp - %zu]",
-				scratch_name(sregs, temp_reg),
-				offset);
+			snprintf(buffer, sizeof(buffer), "\tlea [rbp - %zu], %s",
+				offset,
+				scratch_name(sregs, temp_reg));
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			snprintf(buffer, sizeof(buffer), "\tadd %s, %s",
 				scratch_name(sregs, temp_reg),
-				scratch_name(sregs, e->reg));
+				scratch_name(sregs, e->right->reg));
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
