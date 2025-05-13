@@ -39,6 +39,20 @@ function:
 	mov r8, 10
 	cmp rbx, r8
 	jeq .L3
+	mov rbx, [rbp - 44]
+	mov r8, [rbp - 0]
+	mov r9, r8
+	imul r9, 4
+	mov r9, rax
+	lea r10, [rbp - 12]
+	add r10, r9
+	mov r9, r10
+	mov rbx, 2
+	cmp r9, rbx
+	jg .L4
+	mov rbx, 2
+	mov [rbp - 20], rbx
+.L4:
 	inc [rbp - 44]
 	jmp .L2
 .L3:
@@ -52,8 +66,8 @@ main:
 	mov rbp, rsp
 	sub rsp, 16
 
-	mov rbx, 20
-	mov [rbp - 4], rbx
+	mov r8, 20
+	mov [rbp - 4], r8
 	mov rax, 0
 
 	leave

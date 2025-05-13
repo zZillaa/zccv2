@@ -330,6 +330,10 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		}
 
+		case EXPR_EQUAL:
+		case EXPR_NOT_EQUAL: 
+		case EXPR_GREATER_EQUAL:
+		case EXPR_LESS_EQUAL:
 		case EXPR_GREATER:
 		case EXPR_LESS: {
 			expr_codegen(sregs, writer, e->left);
@@ -345,6 +349,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			break;
 		}
 
+
 		case EXPR_DECREMENT: {
 			size_t offset = compute_offset(e->left->symbol, NULL);
 			snprintf(buffer, sizeof(buffer), "\tdec [rbp - %zu]",
@@ -354,7 +359,6 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			break;	
 
 		}
-		
 		
 		case EXPR_INCREMENT: {
 			size_t offset = compute_offset(e->left->symbol, NULL);
@@ -626,12 +630,32 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
         	if (s->expr) {
         		expr_codegen(sregs, writer, s->expr);
+        		
+        		switch (s->expr->kind) {
+        			case EXPR_LESS_EQUAL:
+        			case EXPR_LESS: {
+        				snprintf(buffer, sizeof(buffer), "\tjg %s", label_name(end_label));
+						break;        		
+        			}
 
-        		snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
-        			scratch_name(sregs, s->expr->reg));
-        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        			case EXPR_GREATER_EQUAL:
+        			case EXPR_GREATER: {
+        				snprintf(buffer, sizeof(buffer), "\tjle %s", label_name(end_label));
+        				break;
+        			}
 
-        		snprintf(buffer, sizeof(buffer), "\tje %s", label_name(end_label));
+        			case EXPR_NOT_EQUAL: {
+        				snprintf(buffer, sizeof(buffer), "\tje %s", label_name(end_label));
+        				break;
+        			}
+
+        			case EXPR_EQUAL: {
+        				snprintf(buffer, sizeof(buffer), "\tjne %s", label_name(end_label));
+        				break;
+        			}
+  
+        		}
+
         		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
         		scratch_free(sregs, s->expr->reg);

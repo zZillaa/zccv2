@@ -15,8 +15,10 @@ int function() {
 
 	arr[2] = 2;
 
-	for (int i = 0; i < 10; i++) {
-
+	for (int i = 0; i <= 10; i++) {
+		if (arr[i] < 2) {
+			arr[i] = 2;
+		}
 	}
 
 
