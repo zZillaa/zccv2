@@ -38,12 +38,11 @@ function:
 	mov rbx, [rbp - 44]
 	mov r8, 10
 	cmp rbx, r8
-	jeq .L3
-	mov rbx, [rbp - 44]
+	jg .L3
+	mov rbx, [rbp - 12]
 	mov r8, [rbp - 0]
 	mov r9, r8
 	imul r9, 4
-	mov r9, rax
 	lea r10, [rbp - 12]
 	add r10, r9
 	mov r9, r10

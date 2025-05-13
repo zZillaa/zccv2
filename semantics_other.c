@@ -325,60 +325,68 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 		}
 
 		case EXPR_SUBSCRIPT: {
-			if (!e->left) {
-				fprintf(stderr, "Error: EXPR_SUBSCRIPT node is NULL\n");
+			if (!e->left || !e->right) {
+				fprintf(stderr, "Error: EXPR_SUBSCRIPT does not have properly initialized children\n");
 				break;
 			}
 
-			if (!e->left->name) {
-				fprintf(stderr, "Error: EXPR_SUBSCRIPT node with no identifier\n");
-				break;
-			}
+			expr_resolve(e->left, stack);
+			expr_resolve(e->right, stack);
+			break;
+			// if (!e->left) {
+			// 	fprintf(stderr, "Error: EXPR_SUBSCRIPT node is NULL\n");
+			// 	break;
+			// }
 
-			struct symbol* left_symbol = scope_lookup(stack, e->left->name, &found_scope);
+			// if (!e->left->name) {
+			// 	fprintf(stderr, "Error: EXPR_SUBSCRIPT node with no identifier\n");
+			// 	break;
+			// }
+
+			// struct symbol* left_symbol = scope_lookup(stack, e->left->name, &found_scope);
 			
-			if (left_symbol) {
-				e->left->symbol = left_symbol;
-				printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
-					"EXPR_ARRAY",
-					e->left->name, found_scope,
-					left_symbol->kind == SYMBOL_LOCAL ? "LOCAL": "GLOBAL");
-				printf("RELEVANT DATA IN SYMBOL\n");
-				printf("SYMBOL kind: %d\n", e->left->symbol->kind);
-				printf("TYPE STRUCTURE IN SYMBOL: %d\n", e->left->symbol->type);
-				if (e->left->symbol->type->subtype) {
-					printf("SUBTYPE STRUCTURE IN TYPE: %d\n", e->left->symbol->type->subtype);
-				}
-				printf("NAME: %s\n", e->left->symbol->name);
+			// if (left_symbol) {
+			// 	e->left->symbol = left_symbol;
+			// 	printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
+			// 		"EXPR_ARRAY",
+			// 		e->left->name, found_scope,
+			// 		left_symbol->kind == SYMBOL_LOCAL ? "LOCAL": "GLOBAL");
+			// 	printf("RELEVANT DATA IN SYMBOL\n");
+			// 	printf("SYMBOL kind: %d\n", e->left->symbol->kind);
+			// 	printf("TYPE STRUCTURE IN SYMBOL: %d\n", e->left->symbol->type);
+			// 	if (e->left->symbol->type->subtype) {
+			// 		printf("SUBTYPE STRUCTURE IN TYPE: %d\n", e->left->symbol->type->subtype);
+			// 	}
+			// 	printf("NAME: %s\n", e->left->symbol->name);
 
-			} else {
-				fprintf(stderr, "Error: Symbol %s not found for %s\n",
-					e->left->name, "EXPR_ARRAY");
-			}
+			// } else {
+			// 	fprintf(stderr, "Error: Symbol %s not found for %s\n",
+			// 		e->left->name, "EXPR_ARRAY");
+			// }
 
-			if (!e->right) {
-				fprintf(stderr, "Error: EXPR_SUBSCRIPT node with no index node\n");
-				break;
-			}
+			// if (!e->right) {
+			// 	fprintf(stderr, "Error: EXPR_SUBSCRIPT node with no index node\n");
+			// 	break;
+			// }
 
-			switch (e->right->kind) {
-				case EXPR_NAME: {
-					struct symbol* right_symbol = scope_lookup(stack, e->right->name, &found_scope);
-					if (right_symbol) {
-						e->right->symbol = right_symbol; 
-						printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
-							"EXPR_NAME",
-							e->right->name, found_scope,
-							right_symbol->kind == SYMBOL_LOCAL ? "LOCAL" : "GLOBAL");
-					} else {
-						fprintf(stderr, "Error: Symbol %s not found for %s\n",
-							e->right->name, "EXPR_NAME");
-					}
-				}
+			// switch (e->right->kind) {
+			// 	case EXPR_NAME: {
+			// 		struct symbol* right_symbol = scope_lookup(stack, e->right->name, &found_scope);
+			// 		if (right_symbol) {
+			// 			e->right->symbol = right_symbol; 
+			// 			printf("Resolved %s %s to symbol at scope %d, kind=%s\n",
+			// 				"EXPR_NAME",
+			// 				e->right->name, found_scope,
+			// 				right_symbol->kind == SYMBOL_LOCAL ? "LOCAL" : "GLOBAL");
+			// 		} else {
+			// 			fprintf(stderr, "Error: Symbol %s not found for %s\n",
+			// 				e->right->name, "EXPR_NAME");
+			// 		}
+			// 	}
 
-				case EXPR_INTEGER:
-					break;
-			}
+			// 	case EXPR_INTEGER:
+			// 		break;
+			// }
 		}
 
 
