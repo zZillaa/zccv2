@@ -39,15 +39,13 @@ function:
 	mov r8, 10
 	cmp rbx, r8
 	jg .L3
-	mov rbx, [rbp - 12]
-	mov r8, [rbp - 0]
-	mov r9, r8
-	imul r9, 4
-	lea r10, [rbp - 12]
-	add r10, r9
-	mov r9, r10
-	mov rbx, 2
-	cmp r9, rbx
+	mov rbx, (null)
+	imul rbx, 4
+	lea r8, [rbp - 12]
+	add r8, rbx
+	mov rbx, r8
+	mov r8, 2
+	cmp rbx, r8
 	jg .L4
 	mov rbx, 2
 	mov [rbp - 20], rbx

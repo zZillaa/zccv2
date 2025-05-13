@@ -826,7 +826,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
                 fprintf(stderr, "Error: Symbol '%s' not found in current scope\n", e->name);
                 return type_create(TYPE_UNKNOWN, NULL, NULL);
             }
-            e->symbol = sym;  // Update the symbol reference
+            // e->symbol = sym;  // Update the symbol reference
             printf("Leaving expr_typecheck with %s\n", e->symbol->name);
             result = type_copy(sym->type);
             break;
@@ -858,7 +858,7 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
                 fprintf(stderr, "Error: Array '%s' not found\n", e->name);
                 return type_create(TYPE_UNKNOWN, NULL, NULL);
             }
-            e->symbol = sym;
+            // e->symbol = sym;
             
             
             // Check array index expression

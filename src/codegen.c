@@ -429,21 +429,21 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			}
 
 
-			expr_codegen(sregs, writer, e->left);
-			if (!e->left->symbol) {
-				fprintf(stderr, "Error: No symbol for array in EXPR_SUBSCRIPT\n");
-				break;
-			}
+			// expr_codegen(sregs, writer, e->left);
+			// if (!e->left->symbol) {
+			// 	fprintf(stderr, "Error: No symbol for array in EXPR_SUBSCRIPT\n");
+			// 	break;
+			// }
 
-			if (e->right->kind == EXPR_NAME && !e->right->symbol && e->right->name) {
-				fprintf(stderr, "Warning: Index symbol is missing for variable '%s'\n", e->right->name);
-			}
+			// if (e->right->kind == EXPR_NAME && !e->right->symbol && e->right->name) {
+			// 	fprintf(stderr, "Warning: Index symbol is missing for variable '%s'\n", e->right->name);
+			// }
 
-			expr_codegen(sregs, writer, e->right);
-			if (e->right->reg == -1) {
-				fprintf(stderr, "Error: No register allocated for index in EXPR_SUBSCRIPT\n");
-				break;
-			}
+			// expr_codegen(sregs, writer, e->right);
+			// if (e->right->reg == -1) {
+			// 	fprintf(stderr, "Error: No register allocated for index in EXPR_SUBSCRIPT\n");
+			// 	break;
+			// }
 
 			e->reg = scratch_alloc(sregs);
 			if (e->reg == -1) {
