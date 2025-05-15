@@ -18,7 +18,6 @@ int function() {
 	for (int i = 0; i <= 10; i++) {
 		if (arr[i] < 3) {
 			arr[i] = 2;
-			continue;
 		} else {
 			arr[i] = 4;
 		}

@@ -420,6 +420,31 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
             break;
         }
 
+        // case TOKEN_ELSE: {
+        //     char* prev_keyword = strdup(tokens[*tokenIdx].value.string);
+        //     if (!prev_keyword) {
+        //         fprintf(stderr, "Error: In TOKEN_ELSE, prev_keyword is NULL\n");
+        //         return NULL;
+        //     }
+
+        //     (*tokenIdx)++;
+        
+        //     if (tokens[*tokenIdx].type == TOKEN_KEYWORD) {
+        //         char *curr_keyword = strdup(tokens[*tokenIdx]);
+        //         if (!curr_keyword) {
+        //             fprintf(stderr, "Error: In TOKEN_ELSE, curr_keyword is NULL\n");
+        //             free(prev_keyword);
+        //             return NULL;
+        //         }
+
+        //         size_t curr_keyword_size = sizeof(curr_keyword);
+        //         char* aug_curr_keyword = strncat(" ", curr_keyword, curr_keyword_size);
+
+        //         char* pos_full_keyword = strncat(prev_keyword) 
+        //     } 
+
+        // }
+
         case TOKEN_IF: {
             (*tokenIdx)++;
             if (tokens[*tokenIdx].type != TOKEN_LEFT_PARENTHESES) {
