@@ -487,7 +487,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				scratch_name(sregs, e->right->reg));
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-			snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
 				scratch_name(sregs, e->reg),
 				scratch_name(sregs, temp_reg));
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
@@ -604,8 +604,59 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 	}
 }
 
-void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s) {
+struct LabelStack* create_label_stack() {
+	struct LabelStack* label_stack = malloc(sizeof(struct LabelStack));
+	if (!label_stack) {
+		fprintf(stderr, "Error: Unable to allocate space for label stack\n");
+		return NULL;
+	}
+
+	for (int i = 0; i < MAX_LABELS; i++) {
+		label_stack->labels[i] = -1;
+	}
+	label_stack->top = -1;
+	return label_stack;
+}
+
+void push_label(struct LabelStack* label_stack, int label) {
+	if (!label_stack) return;
+
+	if (label_stack->top < MAX_LABELS - 1) {
+		label_stack->labels[++label_stack->top] = label;
+	} else {
+		fprintf(stderr, "Error: Label stack overflow\n");
+	}
+}
+
+int pop_label(struct LabelStack* label_stack) {
+	if (label_stack->top >= 0) {
+		return label_stack->labels[label_stack->top--];
+	}
+
+	return -1;
+
+}
+
+int peek_label(struct LabelStack* label_stack, int offset) {
+	if (label_stack->top - offset >= 0) {
+		return label_stack->labels[label_stack->top - offset];
+	}
+	return -1;
+}
+
+struct CodegenContext create_codegen_context(int loop_condition, bool in_loop) {
+	struct CodegenContext context = {
+		.loop_condition = loop_condition,
+		.in_loop = in_loop
+	};
+
+	return context;
+}
+
+
+void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s, struct CodegenContext* context) {
     if (!sregs || !s) return;
+
     
     char buffer[56];
     switch (s->kind) {
@@ -621,7 +672,11 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         	break;        	
 
         case STMT_IF: {
+        	int condition_true_label = label_create();
         	int end_label = label_create();
+
+        	// push_label(stack, end_label);
+        	// push_label(stack, condition_true_label);
 
         	if (s->expr) {
         		expr_codegen(sregs, writer, s->expr);
@@ -655,65 +710,128 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         		scratch_free(sregs, s->expr->reg);
         	}
 
+        	snprintf(buffer, sizeof(buffer), "%s:", label_name(condition_true_label));
+        	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
         	if (s->body) {
-        		stmt_codegen(sregs, writer, s->body);
+        		stmt_codegen(sregs, writer, s->body, context);
         	}
 
-        	if (s->else_body) {
-        		stmt_codegen(sregs, writer, s->else_body);
+        	if (context->loop_condition != -1 && context->in_loop) {
+        		snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(context->loop_condition));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
         	}
 
         	snprintf(buffer, sizeof(buffer), "%s:", label_name(end_label));
         	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        	
+        	if (s->else_body) {
+        		stmt_codegen(sregs, writer, s->else_body, context);
+        	}
+        		
+        	// pop_label(stack);
+        	// pop_label(stack);
+        	break;
         }
-        break;
 
-    	case STMT_IF_ELSE: {
-    		int else_label = label_create();
+    	case STMT_ELSE_IF: {
+    		int condition_true_label = label_create();
     		int end_label = label_create();
+
+    		// push_label(stack, end_label);
+    		// push_label(stack, condition_true_label);
 
     		if (s->expr) {
     			expr_codegen(sregs, writer, s->expr);
 
-    			snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
-    				scratch_name(sregs, s->expr->reg));
-    			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    			switch (s->expr->kind) {
+        			case EXPR_LESS_EQUAL:
+        			case EXPR_LESS: {
+        				snprintf(buffer, sizeof(buffer), "\tjg %s", label_name(end_label));
+						break;        		
+        			}
 
-    			snprintf(buffer, sizeof(buffer), "\tje %s", label_name(else_label));
-    			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        			case EXPR_GREATER_EQUAL:
+        			case EXPR_GREATER: {
+        				snprintf(buffer, sizeof(buffer), "\tjle %s", label_name(end_label));
+        				break;
+        			}
 
+        			case EXPR_NOT_EQUAL: {
+        				snprintf(buffer, sizeof(buffer), "\tje %s", label_name(end_label));
+        				break;
+        			}
+
+        			case EXPR_EQUAL: {
+        				snprintf(buffer, sizeof(buffer), "\tjne %s", label_name(end_label));
+        				break;
+        			}
+  
+        		}
+    			
+    			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
     			scratch_free(sregs, s->expr->reg);
     		}
 
+    		snprintf(buffer, sizeof(buffer), "%s:", label_name(condition_true_label));
+    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
     		if (s->body) {
-    			stmt_codegen(sregs, writer, s->body);
+    			stmt_codegen(sregs, writer, s->body, context);
     		}
 
-    		snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(end_label));
-    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    		if (context->loop_condition != -1 && context->in_loop) {
+    			printf("Label Name: %d\n", label_name(context->loop_condition));
+        		snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(context->loop_condition));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        	}
 
-    		snprintf(buffer, sizeof(buffer), "%s:", label_name(else_label));
-    		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-
-    		if (s->else_body) {
-    			stmt_codegen(sregs, writer, s->else_body);
-    		}
+    		// if (s->else_body) {
+    		// 	snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(end_label));
+    		// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+    		// }
 
     		snprintf(buffer, sizeof(buffer), "%s:", label_name(end_label));
     		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-    	}
-    	break;
 
+    		if (s->else_body) {
+    			stmt_codegen(sregs, writer, s->else_body, context);
+    		}
+
+    		// pop_label(stack);
+    		// pop_label(stack);
+    		break;
+    	}
+
+    	case STMT_ELSE: {
+
+    		if (s->body) {
+    			stmt_codegen(sregs, writer, s->body, context);
+    		}
+
+    		// if (context->loop_condition != -1 && context->in_loop) {
+        	// 	snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(context->loop_condition));
+        	// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        	// }
+
+    		break;
+    	}
         case STMT_FOR: {
         	int loop_start = label_create();
+        	int loop_condition = label_create();
         	int loop_end = label_create();
 
-    	    size_t offset = compute_offset(s->decl->value->symbol, NULL);
+        	printf("For loop label start: %d\n", loop_start);
+        	printf("For loop label end: %d\n", loop_end);
         	
-        	printf("In STMT_FOR, going to initialize expression\n");
-        	
+        	// push_label(stack, loop_end);
+        	// push_label(stack, loop_start);
+
+        	context->loop_condition = loop_condition;
+        	context->in_loop = true;
+
         	if (s->decl) {
-	
+    	    	size_t offset = compute_offset(s->decl->value->symbol, NULL);
         		if (s->decl->value && s->decl->value->kind == EXPR_INTEGER) {
 	        		snprintf(buffer, sizeof(buffer), "\tmov [rbp - %zu], %d",
 	        			offset,
@@ -769,14 +887,17 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         	}
 
         	if (s->body) {
-        		stmt_codegen(sregs, writer, s->body);
+        		stmt_codegen(sregs, writer, s->body, context);
         	}
 
         	if (s->next_expr) {
-        		printf("IN STMT_FOR s->next_expr kind: %d\n", s->next_expr->kind);
         		if (s->next_expr->left->symbol != s->decl->value->symbol) {
         			s->next_expr->left->symbol = s->decl->value->symbol;
         		}
+
+        		snprintf(buffer, sizeof(buffer), "%s:", label_name(loop_condition));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
         		expr_codegen(sregs, writer, s->next_expr);
         		if (s->next_expr->reg != -1) {
         			scratch_free(sregs, s->next_expr->reg);
@@ -789,6 +910,12 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         	snprintf(buffer, sizeof(buffer), "%s:", label_name(loop_end));
         	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
         	
+        	// pop_label(stack);
+        	// pop_label(stack);
+
+        	context->loop_condition = -1;
+        	context->in_loop = false;
+
         	break;
         }
 
@@ -814,7 +941,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     		}
 
     		if (s->body) {
-    			stmt_codegen(sregs, writer, s->body);
+    			stmt_codegen(sregs, writer, s->body, context);
     		}
 
     		snprintf(buffer, sizeof(buffer), "\tjmp %s",
@@ -840,158 +967,158 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 				// scratch_free(sregs, s->expr->reg);
 			}
-			snprintf(buffer, sizeof(buffer), "\n\tleave\n\tret");
+			snprintf(buffer, sizeof(buffer), "\tleave\n\tret");
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
         	break;
     }
     
-    stmt_codegen(sregs, writer, s->next);
+    stmt_codegen(sregs, writer, s->next, context);
 }
 
-struct FormatQueue* create_format_queue(int capacity) {
-	struct FormatQueue* q = malloc(sizeof(struct FormatQueue));
-	if (!q) {
-		fprintf(stderr, "Error: Failed to allocate space for format queue\n");
-		return NULL;
-	}
+// struct FormatQueue* create_format_queue(int capacity) {
+// 	struct FormatQueue* q = malloc(sizeof(struct FormatQueue));
+// 	if (!q) {
+// 		fprintf(stderr, "Error: Failed to allocate space for format queue\n");
+// 		return NULL;
+// 	}
 
-	q->capacity = capacity;
-	q->size = 0;
-	q->front = -1;
-	q->rear = -1;
-	q->items = malloc(sizeof(char*) * capacity);
-	if (!q->items) {
-		fprintf(stderr, "Error: Failed to allocate space for format queue items\n");
-		free(q);
-		return NULL;
-	}
+// 	q->capacity = capacity;
+// 	q->size = 0;
+// 	q->front = -1;
+// 	q->rear = -1;
+// 	q->items = malloc(sizeof(char*) * capacity);
+// 	if (!q->items) {
+// 		fprintf(stderr, "Error: Failed to allocate space for format queue items\n");
+// 		free(q);
+// 		return NULL;
+// 	}
 
-	for (int i = 0; i < q->capacity; i++) {
-		q->items[i] = NULL;
-	}
+// 	for (int i = 0; i < q->capacity; i++) {
+// 		q->items[i] = NULL;
+// 	}
 
-	return q;
-}
+// 	return q;
+// }
 
-void enqueue_format(struct FormatQueue* q, const char* format) {
-	if (!q || !format) return;
+// void enqueue_format(struct FormatQueue* q, const char* format) {
+// 	if (!q || !format) return;
 
-	if (q->size >= q->capacity) {
-		printf("Format queue is full\n");
-		return;
-	} else {
-		if (q->front == -1) {
-			q->front = 0;
-		}
+// 	if (q->size >= q->capacity) {
+// 		printf("Format queue is full\n");
+// 		return;
+// 	} else {
+// 		if (q->front == -1) {
+// 			q->front = 0;
+// 		}
 
-		q->rear++;
-		q->items[q->rear] = format;
-		q->size++;
-	}
-}
+// 		q->rear++;
+// 		q->items[q->rear] = format;
+// 		q->size++;
+// 	}
+// }
 
-char* dequeue_format(struct FormatQueue* q) {
-	char* item;
-	if (is_format_queue_empty(q)) {
-		printf("Queue is empty\n");
-		item = NULL;
-	} else {
-		item = q->items[q->front];
-		q->front++;
-		q->size--;
-		if (q->front > q->rear) {
-			q->front = q->rear = -1;
-		}
-	}
+// char* dequeue_format(struct FormatQueue* q) {
+// 	char* item;
+// 	if (is_format_queue_empty(q)) {
+// 		printf("Queue is empty\n");
+// 		item = NULL;
+// 	} else {
+// 		item = q->items[q->front];
+// 		q->front++;
+// 		q->size--;
+// 		if (q->front > q->rear) {
+// 			q->front = q->rear = -1;
+// 		}
+// 	}
 
-	return item;
-}
+// 	return item;
+// }
 
-int is_format_queue_empty(struct FormatQueue* q) {
-	if (q->rear == -1) return 1;
+// int is_format_queue_empty(struct FormatQueue* q) {
+// 	if (q->rear == -1) return 1;
 
-	return 0;
-}
+// 	return 0;
+// }
 
-struct ArgumentQueue* create_argument_queue(int capacity) {
-	struct ArgumentQueue* q = malloc(sizeof(struct ArgumentQueue));
-	if (!q) {
-		fprintf(stderr, "Error: Failed to allocate space for argument space\n");
-		return NULL;
-	}
+// struct ArgumentQueue* create_argument_queue(int capacity) {
+// 	struct ArgumentQueue* q = malloc(sizeof(struct ArgumentQueue));
+// 	if (!q) {
+// 		fprintf(stderr, "Error: Failed to allocate space for argument space\n");
+// 		return NULL;
+// 	}
 
-	q->capacity = capacity;
-	q->size = 0;
-	q->front = -1;
-	q->rear = -1;
-	q->items = malloc(sizeof(struct expr*) * capacity);
-	if (!q->items) {
-		fprintf(stderr, "Error: Failed to allocate space for argument queue items\n");
-		free(q);
-		return NULL;
-	}
+// 	q->capacity = capacity;
+// 	q->size = 0;
+// 	q->front = -1;
+// 	q->rear = -1;
+// 	q->items = malloc(sizeof(struct expr*) * capacity);
+// 	if (!q->items) {
+// 		fprintf(stderr, "Error: Failed to allocate space for argument queue items\n");
+// 		free(q);
+// 		return NULL;
+// 	}
 
-	return q;
-}
+// 	return q;
+// }
 
-void enqueue_arg(struct ArgumentQueue* q, struct expr* e) {
-	if (!q || !e) return;
+// void enqueue_arg(struct ArgumentQueue* q, struct expr* e) {
+// 	if (!q || !e) return;
 
-	if (q->size >= q->capacity) {
-		printf("Argument queue is full, come back later\n");
-		return;
-	} else {
-		if (q->front == -1) {
-			q->front = 0;
-		}
+// 	if (q->size >= q->capacity) {
+// 		printf("Argument queue is full, come back later\n");
+// 		return;
+// 	} else {
+// 		if (q->front == -1) {
+// 			q->front = 0;
+// 		}
 
-		q->rear++;
-		q->items[q->rear] = e;
-		q->size++;
-	}
-}
+// 		q->rear++;
+// 		q->items[q->rear] = e;
+// 		q->size++;
+// 	}
+// }
 
-struct expr* dequeue_arg(struct ArgumentQueue* q) {
-	struct expr* e;
-	if (is_arg_queue_empty(q)) {
-		printf("Arg queue is empty\n");
-		e = NULL;
-	} else {
-		e = q->items[q->front];
-		q->front++;
-		q->size--;
-		if (q->front > q->rear) {
-			q->front = q->rear = -1;
-		}
-	}	
-	return e;
-}
+// struct expr* dequeue_arg(struct ArgumentQueue* q) {
+// 	struct expr* e;
+// 	if (is_arg_queue_empty(q)) {
+// 		printf("Arg queue is empty\n");
+// 		e = NULL;
+// 	} else {
+// 		e = q->items[q->front];
+// 		q->front++;
+// 		q->size--;
+// 		if (q->front > q->rear) {
+// 			q->front = q->rear = -1;
+// 		}
+// 	}	
+// 	return e;
+// }
 
-int is_arg_queue_empty(struct ArgumentQueue* q) {
-	if (q->rear == -1) return 1;
+// int is_arg_queue_empty(struct ArgumentQueue* q) {
+// 	if (q->rear == -1) return 1;
 
-	return 0;
-}
+// 	return 0;
+// }
 
-void free_format_queue(struct FormatQueue* queue) {
-	if (!queue) return;
+// void free_format_queue(struct FormatQueue* queue) {
+// 	if (!queue) return;
 
-	for (int i = 0; i < queue->capacity; i++) {
-		if (queue->items[i]) {
-			free(queue->items[i]);
-		}
-	}
-	free(queue->items);
-	free(queue);
-}
+// 	for (int i = 0; i < queue->capacity; i++) {
+// 		if (queue->items[i]) {
+// 			free(queue->items[i]);
+// 		}
+// 	}
+// 	free(queue->items);
+// 	free(queue);
+// }
 
-void free_argument_queue(struct ArgumentQueue* queue) {
-	if (!queue) return;
+// void free_argument_queue(struct ArgumentQueue* queue) {
+// 	if (!queue) return;
 
-	if (queue->items) free(queue->items);
-	free(queue);
-}
+// 	if (queue->items) free(queue->items);
+// 	free(queue);
+// }
 
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d, bool is_local) {
     if (!sregs || !d) return;
@@ -999,6 +1126,9 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     static bool have_section_data = false;
     static bool have_section_text = false;
     static bool have_declared_start = false;
+
+    struct LabelStack* stack = create_label_stack();
+    struct CodegenContext context = create_codegen_context(-1, false);
     
     // Only handle global section setup when not processing local declarations
     if (!is_local) {
@@ -1064,7 +1194,7 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
             	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
             	if (func_bodies->code) {
-            		stmt_codegen(sregs, writer, func_bodies->code);
+            		stmt_codegen(sregs, writer, func_bodies->code, &context);
             	}
             	// if (strcmp(func_bodies->name, "main") == 0) {
             	// 	snprintf(buffer, sizeof(buffer), "\n%s:", func_bodies->name);
@@ -1114,214 +1244,214 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     }
 }
 
-void codegen_dag_node(struct RegisterTable* sregs, struct AsmWriter* writer, struct dag_node* node) {
-	if (!node || node->freed || node->reg != - 1) return;
+// void codegen_dag_node(struct RegisterTable* sregs, struct AsmWriter* writer, struct dag_node* node) {
+// 	if (!node || node->freed || node->reg != - 1) return;
 
-	node->reg = -1;
-	if (node->left) codegen_dag_node(sregs, writer, node->left);
-	if (node->right) codegen_dag_node(sregs, writer, node->right);
+// 	node->reg = -1;
+// 	if (node->left) codegen_dag_node(sregs, writer, node->left);
+// 	if (node->right) codegen_dag_node(sregs, writer, node->right);
 
-	char buffer[256];
+// 	char buffer[256];
 
-	switch (node->kind) {
-		case DAG_INTEGER_VALUE: {
-			node->reg = scratch_alloc(sregs);
+// 	switch (node->kind) {
+// 		case DAG_INTEGER_VALUE: {
+// 			node->reg = scratch_alloc(sregs);
 
-			if (node->reg == -1) return;
+// 			if (node->reg == -1) return;
 
-			snprintf(buffer, sizeof(buffer), "\tmov %s, %d",
-				scratch_name(sregs, node->reg), node->u.integer_value);
+// 			snprintf(buffer, sizeof(buffer), "\tmov %s, %d",
+// 				scratch_name(sregs, node->reg), node->u.integer_value);
 			
-			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			break;
-		} 
+// 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+// 			break;
+// 		} 
 
-		case DAG_NAME: {
-			if (!node->symbol) {
-				fprintf(stderr, "Error: No symbol for DAG_NAME node\n");
-				return;
-			}
-			node->reg = scratch_alloc(sregs);
-			if (node->reg == -1) return;
-			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
-				scratch_name(sregs, node->reg), symbol_codegen(node->symbol));
-			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			break;
-		}
+// 		case DAG_NAME: {
+// 			if (!node->symbol) {
+// 				fprintf(stderr, "Error: No symbol for DAG_NAME node\n");
+// 				return;
+// 			}
+// 			node->reg = scratch_alloc(sregs);
+// 			if (node->reg == -1) return;
+// 			snprintf(buffer, sizeof(buffer), "\tmov %s, [%s]",
+// 				scratch_name(sregs, node->reg), symbol_codegen(node->symbol));
+// 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+// 			break;
+// 		}
 
-		case DAG_ASSIGN: {
-			if (!node->left || !node->right || node->left->kind != DAG_NAME || !node->left->symbol) {
-				fprintf(stderr, "Error: Invalid assignment node\n");
-				return;
-			}
+// 		case DAG_ASSIGN: {
+// 			if (!node->left || !node->right || node->left->kind != DAG_NAME || !node->left->symbol) {
+// 				fprintf(stderr, "Error: Invalid assignment node\n");
+// 				return;
+// 			}
 
-			if (node->right->reg == -1) {
-				fprintf(stderr, "Error: Right operand not evaluated\n");
-				return;
-			}
-			snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-				symbol_codegen(node->left->symbol), scratch_name(sregs, node->right->reg));
-			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			node->reg = node->right->reg;
-			break;
-		}
+// 			if (node->right->reg == -1) {
+// 				fprintf(stderr, "Error: Right operand not evaluated\n");
+// 				return;
+// 			}
+// 			snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
+// 				symbol_codegen(node->left->symbol), scratch_name(sregs, node->right->reg));
+// 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+// 			node->reg = node->right->reg;
+// 			break;
+// 		}
 
-		case DAG_ADD:
-        case DAG_SUB:
-        case DAG_MUL: {
-            if (!node->left || !node->right || node->left->reg == -1 || node->right->reg == -1) {
-                fprintf(stderr, "Error: Invalid arithmetic node\n");
-                return;
-            }
-            if (node->kind == DAG_MUL) {
-                int save_reg = -1;
-                if (strcmp(scratch_name(sregs, node->left->reg), "rax") != 0) {
-                    save_reg = scratch_alloc(sregs);
-                    if (save_reg == -1) {
-                        fprintf(stderr, "Error: No free registers for MUL\n");
-                        return;
-                    }
-                    snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
-                             scratch_name(sregs, save_reg));
-                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-                }
+// 		case DAG_ADD:
+//         case DAG_SUB:
+//         case DAG_MUL: {
+//             if (!node->left || !node->right || node->left->reg == -1 || node->right->reg == -1) {
+//                 fprintf(stderr, "Error: Invalid arithmetic node\n");
+//                 return;
+//             }
+//             if (node->kind == DAG_MUL) {
+//                 int save_reg = -1;
+//                 if (strcmp(scratch_name(sregs, node->left->reg), "rax") != 0) {
+//                     save_reg = scratch_alloc(sregs);
+//                     if (save_reg == -1) {
+//                         fprintf(stderr, "Error: No free registers for MUL\n");
+//                         return;
+//                     }
+//                     snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
+//                              scratch_name(sregs, save_reg));
+//                     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//                 }
 
-                if (strcmp(scratch_name(sregs, node->left->reg), "rax") != 0) {
-                    snprintf(buffer, sizeof(buffer), "\tmov rax, %s",
-                             scratch_name(sregs, node->left->reg));
-                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-                }
+//                 if (strcmp(scratch_name(sregs, node->left->reg), "rax") != 0) {
+//                     snprintf(buffer, sizeof(buffer), "\tmov rax, %s",
+//                              scratch_name(sregs, node->left->reg));
+//                     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//                 }
 
-                snprintf(buffer, sizeof(buffer), "\tmul %s",
-                         scratch_name(sregs, node->right->reg));
-                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//                 snprintf(buffer, sizeof(buffer), "\tmul %s",
+//                          scratch_name(sregs, node->right->reg));
+//                 asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-                node->reg = scratch_alloc(sregs);
-                if (node->reg == -1) {
-                    fprintf(stderr, "Error: No free registers for MUL result\n");
-                    return;
-                }
-                if (strcmp(scratch_name(sregs, node->reg), "rax") != 0) {
-                    snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
-                             scratch_name(sregs, node->reg));
-                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-                }
+//                 node->reg = scratch_alloc(sregs);
+//                 if (node->reg == -1) {
+//                     fprintf(stderr, "Error: No free registers for MUL result\n");
+//                     return;
+//                 }
+//                 if (strcmp(scratch_name(sregs, node->reg), "rax") != 0) {
+//                     snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
+//                              scratch_name(sregs, node->reg));
+//                     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//                 }
 
-                if (save_reg != -1) {
-                    snprintf(buffer, sizeof(buffer), "\tmov rax, %s",
-                             scratch_name(sregs, save_reg));
-                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-                    scratch_free(sregs, save_reg);
-                }
-            } else {
+//                 if (save_reg != -1) {
+//                     snprintf(buffer, sizeof(buffer), "\tmov rax, %s",
+//                              scratch_name(sregs, save_reg));
+//                     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//                     scratch_free(sregs, save_reg);
+//                 }
+//             } else {
              
-                snprintf(buffer, sizeof(buffer), "\t%s %s, %s",
-                         (node->kind == DAG_ADD) ? "add" : "sub",
-                         scratch_name(sregs, node->left->reg),
-                         scratch_name(sregs, node->right->reg));
-                asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-                node->reg = node->left->reg;
-                scratch_free(sregs, node->right->reg);
-            }
-            scratch_free(sregs, node->left->reg);
-            break;
-        }
+//                 snprintf(buffer, sizeof(buffer), "\t%s %s, %s",
+//                          (node->kind == DAG_ADD) ? "add" : "sub",
+//                          scratch_name(sregs, node->left->reg),
+//                          scratch_name(sregs, node->right->reg));
+//                 asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//                 node->reg = node->left->reg;
+//                 scratch_free(sregs, node->right->reg);
+//             }
+//             scratch_free(sregs, node->left->reg);
+//             break;
+//         }
 
-		default:
-			break;
+// 		default:
+// 			break;
 
-	}
-}
+// 	}
+// }
 
-void codegen_dag(struct RegisterTable* sregs, struct AsmWriter* writer, struct DAG* dag) {
-	if (!sregs || !writer || !dag) return;
+// void codegen_dag(struct RegisterTable* sregs, struct AsmWriter* writer, struct DAG* dag) {
+// 	if (!sregs || !writer || !dag) return;
 
-	char buffer[256];
+// 	char buffer[256];
 
-	for (int i = 0; i < dag->node_count; i++) {
-		struct dag_node* node = dag->nodes[i];
-		if (!node || node->freed) continue;
-		codegen_dag_node(sregs, writer, node);
-	}
-}
+// 	for (int i = 0; i < dag->node_count; i++) {
+// 		struct dag_node* node = dag->nodes[i];
+// 		if (!node || node->freed) continue;
+// 		codegen_dag_node(sregs, writer, node);
+// 	}
+// }
 
-void codegen_block(struct RegisterTable* sregs, struct AsmWriter* writer, struct basic_block* block) {
-    if (!sregs || !writer || !block || block->emitted_x86_assembly) return;
+// void codegen_block(struct RegisterTable* sregs, struct AsmWriter* writer, struct basic_block* block) {
+//     if (!sregs || !writer || !block || block->emitted_x86_assembly) return;
 
-    char buffer[256];
+//     char buffer[256];
 
-    // Generate a unique label for the block
-    int label = label_create();
-    snprintf(buffer, sizeof(buffer), "%s:", label_name(label));
-    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//     // Generate a unique label for the block
+//     int label = label_create();
+//     snprintf(buffer, sizeof(buffer), "%s:", label_name(label));
+//     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-    // Generate code for the block's DAG
-    if (block->dag) {
-        codegen_dag(sregs, writer, block->dag);
-    }
+//     // Generate code for the block's DAG
+//     if (block->dag) {
+//         codegen_dag(sregs, writer, block->dag);
+//     }
 
-    // Handle control flow to successors
-    if (block->successor_count > 0) {
-        if (block->successor_count == 1) {
-            snprintf(buffer, sizeof(buffer), "\tjmp %s",
-                     label_name(block->successors[0]->label));
-            asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-        } else if (block->successor_count == 2) {
-            if (block->dag && block->dag->node_count > 0) {
-                struct dag_node* cond_node = block->dag->nodes[0];
-                if (cond_node && cond_node->reg != -1) {
-                    snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
-                             scratch_name(sregs, cond_node->reg));
-                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//     // Handle control flow to successors
+//     if (block->successor_count > 0) {
+//         if (block->successor_count == 1) {
+//             snprintf(buffer, sizeof(buffer), "\tjmp %s",
+//                      label_name(block->successors[0]->label));
+//             asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//         } else if (block->successor_count == 2) {
+//             if (block->dag && block->dag->node_count > 0) {
+//                 struct dag_node* cond_node = block->dag->nodes[0];
+//                 if (cond_node && cond_node->reg != -1) {
+//                     snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
+//                              scratch_name(sregs, cond_node->reg));
+//                     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-                    const char* jump_inst = NULL;
-                    switch (cond_node->kind) {
-                        case DAG_LESS: jump_inst = "jl"; break;
-                        case DAG_GREATER: jump_inst = "jg"; break;
-                        case DAG_LESS_EQUAL: jump_inst = "jle"; break;
-                        case DAG_GREATER_EQUAL: jump_inst = "jge"; break;
-                        case DAG_EQUAL: jump_inst = "je"; break;
-                        case DAG_NOT_EQUAL: jump_inst = "jne"; break;
-                        default: jump_inst = "jnz"; break;
-                    }
-                    snprintf(buffer, sizeof(buffer), "\t%s %s",
-                             jump_inst, label_name(block->successors[0]->label));
-                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//                     const char* jump_inst = NULL;
+//                     switch (cond_node->kind) {
+//                         case DAG_LESS: jump_inst = "jl"; break;
+//                         case DAG_GREATER: jump_inst = "jg"; break;
+//                         case DAG_LESS_EQUAL: jump_inst = "jle"; break;
+//                         case DAG_GREATER_EQUAL: jump_inst = "jge"; break;
+//                         case DAG_EQUAL: jump_inst = "je"; break;
+//                         case DAG_NOT_EQUAL: jump_inst = "jne"; break;
+//                         default: jump_inst = "jnz"; break;
+//                     }
+//                     snprintf(buffer, sizeof(buffer), "\t%s %s",
+//                              jump_inst, label_name(block->successors[0]->label));
+//                     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-                    snprintf(buffer, sizeof(buffer), "\tjmp %s",
-                             label_name(block->successors[1]->label));
-                    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+//                     snprintf(buffer, sizeof(buffer), "\tjmp %s",
+//                              label_name(block->successors[1]->label));
+//                     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-                    scratch_free(sregs, cond_node->reg);
-                }
-            }
-        }
-    }
+//                     scratch_free(sregs, cond_node->reg);
+//                 }
+//             }
+//         }
+//     }
 
-    block->emitted_x86_assembly = true;
-    block->label = label;
-}
+//     block->emitted_x86_assembly = true;
+//     block->label = label;
+// }
 
-void codegen_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg) {
-	if (cfg->blocks) {
-		for (int i = 0; i < cfg->block_count; i++) {
-			if (cfg->blocks[i]->emitted_x86_assembly) continue;
+// void codegen_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg) {
+// 	if (cfg->blocks) {
+// 		for (int i = 0; i < cfg->block_count; i++) {
+// 			if (cfg->blocks[i]->emitted_x86_assembly) continue;
 
-			cfg->blocks[i]->emitted_x86_assembly = true;
-			codegen_block(sregs, writer, cfg->blocks[i]);
-		}
-	}
-}
+// 			cfg->blocks[i]->emitted_x86_assembly = true;
+// 			codegen_block(sregs, writer, cfg->blocks[i]);
+// 		}
+// 	}
+// }
 
-void process_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg) {
-	if (!sregs || !writer || !cfg) return;
+// void process_CFG(struct RegisterTable* sregs, struct AsmWriter* writer, struct CFG* cfg) {
+// 	if (!sregs || !writer || !cfg) return;
 
-	while (cfg) {
-		struct cfg* next = cfg->next;
-		codegen_CFG(sregs, writer, cfg);
-		cfg = next;
-	}
-}
+// 	while (cfg) {
+// 		struct cfg* next = cfg->next;
+// 		codegen_CFG(sregs, writer, cfg);
+// 		cfg = next;
+// 	}
+// }
 
 void free_register(struct Register* reg) {
 	if (!reg) return;

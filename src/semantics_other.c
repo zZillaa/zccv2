@@ -123,7 +123,7 @@ bool is_symbol_redeclared(struct symbol_table* table, char* name) {
 
 struct symbol* scope_lookup(struct stack* stack, char* name, int* found_scope) {
 	if (!stack || !name || !found_scope) return NULL;
-
+	printf("Current name im looking up is '%s'\n", name);
 	if (stack->top < 0) return NULL;
 
 	for (int i = stack->top; i >= 0; i--) {
@@ -441,7 +441,7 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 				break;
 			}
 
-			case STMT_IF_ELSE:
+			case STMT_ELSE_IF:
 			case STMT_IF: {
 				if (stmt->expr) expr_resolve(stmt->expr, stack);
 
@@ -458,6 +458,15 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 				}
 				break;
 			}
+
+			case STMT_ELSE: {
+				if (stmt->body) {
+					scope_enter(stack, NULL);
+					stmt_resolve(stmt->body, stack);
+					scope_exit(stack);
+				}
+				break;
+			} 
 
 			case STMT_WHILE:
 			case STMT_FOR: {
@@ -508,12 +517,16 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 				break;
 			}
 
-			case STMT_RETURN:
+			case STMT_RETURN: {
 				if (stmt->expr) {
 					expr_resolve(stmt->expr, stack);
 				}
+				break;	
+			}
+			case STMT_BREAK:
+			case STMT_CONTINUE: {
 				break;
-
+			}
 
 		}
 		stmt = stmt->next;
@@ -819,9 +832,12 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
     switch (e->kind) {
         case EXPR_NAME: {
         	printf("In expr_typecheck with\n");
+        	printf("Im also here\n");
             // Lookup the symbol in current scope stack
             int found_scope;
+
             struct symbol* sym = scope_lookup(stack, e->name, &found_scope);
+            printf("Im now here\n");
             if (!sym) {
                 fprintf(stderr, "Error: Symbol '%s' not found in current scope\n", e->name);
                 return type_create(TYPE_UNKNOWN, NULL, NULL);
@@ -998,7 +1014,6 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
         switch (s->kind) {
             case STMT_DECL:
                 if (s->decl) {
-                    // Create and bind symbol for the declaration
                     if (!s->decl->symbol) {
                         symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
                         s->decl->symbol = create_symbol(kind, s->decl->type, s->decl->name);
@@ -1010,7 +1025,6 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                 }
                 break;
 
-            // Rest of the cases remain the same
             case STMT_EXPR:
                 if (s->expr) {
                     struct type* t = expr_typecheck(s->expr, stack);
@@ -1018,8 +1032,17 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                 }
                 break;
 
+            case STMT_ELSE: {
+            	if (s->body) {
+            		scope_enter(stack, NULL);
+            		stmt_typecheck(s->body, stack);
+            		scope_exit(stack);
+            	}
+            	break;
+            }
+
             case STMT_IF:
-            case STMT_IF_ELSE:
+            case STMT_ELSE_IF:
                 if (s->expr) {
                     struct type* t = expr_typecheck(s->expr, stack);
                     if (!t || t->kind != TYPE_BOOLEAN) {
@@ -1052,12 +1075,10 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
             			}
             		}
             		decl_typecheck(s->decl, stack);
-            	} else if (s->init_expr) {
-                    struct type* t_init = expr_typecheck(s->init_expr, stack);
-                    type_delete(t_init);
-                }
+            	} 
 
                 if (s->expr) {
+                	printf("IN STMT TYPECHECK, CASE: STMT_FOR: s->expr\n");
                     struct type* t_cond = expr_typecheck(s->expr, stack);
                     if (!t_cond || t_cond->kind != TYPE_BOOLEAN) {
                         fprintf(stderr, "Error: For loop condition must be boolean type\n");
@@ -1116,6 +1137,17 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                             current_function->name);
                 }
                 break;
+
+            	// case STMT_BREAK: {
+            	// 	if (s->symbol)
+            	// } 
+            	// case STMT_CONTINUE: {
+            	// 	if (s->symbol->kind != SYMBOL_LOCAL) {
+            			
+            	// 	}
+
+            	// 	break;
+            	// }
         }
 
         s = s->next;

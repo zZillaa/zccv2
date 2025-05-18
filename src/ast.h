@@ -22,8 +22,8 @@ struct decl {
 typedef enum {
     STMT_DECL,
     STMT_EXPR,
-    STMT_IF_ELSE,
     STMT_IF,
+    STMT_ELSE_IF,
     STMT_FOR,
     STMT_WHILE,
     STMT_PRINT,
@@ -172,6 +172,17 @@ struct stack {
     struct symbol_table** symbol_tables;
 };
 
+struct stmt_t_stack {
+    int top;
+    stmt_t cf_statements[STACK_SIZE];
+};
+
+void push_stmt_t(struct stmt_t_stack* stack, stmt_t type);
+stmt_t pop_stmt_t(struct stmt_t_stack* stack);
+stmt_t peek_stmt_t(struct stmt_t_stack* stack);
+bool is_stmt_t_stack_empty(struct stmt_t_stack* stack);
+
+
 expr_t get_expr_type(Token* token);
 stmt_t get_stmt_type(Token* token);
 type_t get_type(Token* token);
@@ -219,8 +230,6 @@ void print_expr(struct expr* expr, int indent);
 void print_stmt(struct stmt* stmt, int indent);
 void print_decl(struct decl* decl, int indent);
 void print_ast(struct program* program);
-
-
 
 void scope_enter(struct stack* stack, struct symbol* symbol);
 void scope_exit(struct stack* stack);

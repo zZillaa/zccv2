@@ -8,7 +8,7 @@
 #include <string.h>
 
 #define MAX_SCRATCH_REGISTERS 10
-
+#define MAX_LABELS 100
 
 typedef enum register_state_t {
 	REGISTER_FREE,
@@ -73,6 +73,22 @@ struct ArgumentQueue {
 	int rear;
 };
 
+struct LabelStack {
+	int labels[MAX_LABELS];
+	int top;
+};
+
+struct CodegenContext {
+	int loop_condition;
+	bool in_loop;
+};
+
+struct CodegenContext create_codegen_context(int loop_condition, bool in_loop);
+struct LabelStack* create_label_stack();
+void push_label(struct LabelStack* label_stack, int label);
+int pop_label(struct LabelStack* label_stack);
+int peek_label(struct LabelStack* label_stack, int offset);
+
 struct FormatQueue* create_format_queue(int capacity);
 void enqueue_format(struct FormatQueue* q, const char* format);
 char* dequeue_format(struct FormatQueue* q);
@@ -109,7 +125,7 @@ size_t compute_offset(struct symbol* symbol, int* index);
 
 char* symbol_codegen(struct symbol* sym);
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);
-void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s);
+void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s, struct CodegenContext* context);
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d, bool is_local);
 
 void codegen_dag_node(struct RegisterTable* sregs, struct AsmWriter* writer, struct dag_node* node);

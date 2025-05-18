@@ -20,43 +20,54 @@ function:
 	inc [rbp - 8]
 
 	mov dword [rbp - 12], 1
-	mov dword [rbp - 16], 2
-	mov dword [rbp - 20], 3
-	mov dword [rbp - 24], 4
+	mov dword [rbp - 16], 6
+	mov dword [rbp - 20], 8
 
-
-	mov dword [rbp - 28], 5
-	mov dword [rbp - 32], 6
-	mov dword [rbp - 36], 0
-
-	mov rax, 4
-	mov [rbp - 40], rax
-	mov rax, 2
-	mov [rbp - 20], rax
-	mov [rbp - 44], 0
-.L2: 
-	mov rbx, [rbp - 44]
-	mov r8, 10
-	cmp rbx, r8
+	mov [rbp - 24], 0
+.L1: 
+	mov rax, [rbp - 24]
+	mov rbx, 10
+	cmp rax, rbx
 	jg .L3
-	mov rbx, [rbp - 44]
+	mov rax, [rbp - 24]
+	imul rax, 4
+	lea r8, [rbp - 12]
+	add r8, rax
+	mov rbx, [r8]
+	mov rax, 10
+	cmp rbx, rax
+	jg .L5
+.L4:
+	mov rax, 5
+	mov [rbp - 32], rax
+	jmp .L2
+.L5:
+	mov rbx, [rbp - 24]
 	imul rbx, 4
 	lea r9, [rbp - 12]
 	add r9, rbx
-	mov r8, r9
-	mov rbx, 3
+	mov r8, [r9]
+	mov rbx, 10
 	cmp r8, rbx
-	jg .L4
+	jg .L7
+.L6:
 	mov rbx, 2
 	mov [rbp - 20], rbx
-	mov r8, 4
-	mov [rbp - 28], r8
-.L4:
-	inc [rbp - 44]
 	jmp .L2
+.L7:
+	mov r8, 8
+	mov [rbp - 44], r8
+.L2:
+	inc [rbp - 24]
+	jmp .L1
 .L3:
-	mov rax, 0
 
+	mov dword [rbp - 28], 0
+	mov dword [rbp - 32], 4
+	mov dword [rbp - 36], 5
+	mov dword [rbp - 40], 4
+
+	mov rax, 0
 	leave
 	ret
 
@@ -68,6 +79,5 @@ main:
 	mov r9, 20
 	mov [rbp - 4], r9
 	mov rax, 0
-
 	leave
 	ret

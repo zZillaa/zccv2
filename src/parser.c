@@ -4,6 +4,8 @@
 #include <string.h>
 #include "ast.h"
 
+struct stmt_t_stack* cf_stack = NULL;
+
 struct expr* expr_create_integer_literal(int i) {
     struct expr* node = expr_create(EXPR_INTEGER, NULL, NULL);
     if (!node) {
@@ -131,8 +133,56 @@ struct stmt* stmt_create(stmt_t kind, struct decl* decl, struct expr* init_expr,
     node->else_body = else_body;
     node->next = next;
     node->symbol = NULL;
-
     return node;
+}
+
+struct stmt_t_stack* create_stmt_t_stack() {
+    struct stmt_t_stack* stack = malloc(sizeof(struct stmt_t_stack));
+    if (!stack) {
+        fprintf(stderr, "Error: Unable to allocate space for stmt_t_stack\n");
+        return NULL;
+    }
+
+    for (int i = 0; i < STACK_SIZE; i++) {
+        stack->cf_statements[i] = -1;
+    }
+
+    stack->top = -1;
+    return stack;
+}
+
+void push_stmt_t(struct stmt_t_stack* stack, stmt_t type) {
+    if (stack->top >= STACK_SIZE - 1) {
+        fprintf(stderr, "Error: stmt_t stack is full\n");
+        return;
+    } else {
+        stack->cf_statements[++stack->top] = type;
+    }
+}
+
+stmt_t pop_stmt_t(struct stmt_t_stack* stack) {
+    if (!stack) return -1;
+
+    if (!is_stmt_t_stack_empty(stack)) {
+        return stack->cf_statements[stack->top--];
+    }
+
+    return -1;
+}
+
+stmt_t peek_stmt_t(struct stmt_t_stack* stack) {
+    if (!stack) return -1;
+
+    if (!is_stmt_t_stack_empty(stack)) {
+        return stack->cf_statements[stack->top];
+    }
+
+    return -1;
+}
+
+bool is_stmt_t_stack_empty(struct stmt_t_stack* stack) {
+    if (!stack) return true;
+    return stack->top == -1;
 }
 
 type_t get_type(Token* token) {
@@ -420,32 +470,85 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
             break;
         }
 
-        // case TOKEN_ELSE: {
-        //     char* prev_keyword = strdup(tokens[*tokenIdx].value.string);
-        //     if (!prev_keyword) {
-        //         fprintf(stderr, "Error: In TOKEN_ELSE, prev_keyword is NULL\n");
-        //         return NULL;
-        //     }
+        case TOKEN_ELSE: {
+            if (is_stmt_t_stack_empty(cf_stack) ||
+                peek_stmt_t(cf_stack) != STMT_IF && peek_stmt_t(cf_stack) != STMT_ELSE_IF) {
+                fprintf(stderr, "Error: 'else' without matching 'if' or 'else if'\n");
+                return NULL;
+            }
 
-        //     (*tokenIdx)++;
-        
-        //     if (tokens[*tokenIdx].type == TOKEN_KEYWORD) {
-        //         char *curr_keyword = strdup(tokens[*tokenIdx]);
-        //         if (!curr_keyword) {
-        //             fprintf(stderr, "Error: In TOKEN_ELSE, curr_keyword is NULL\n");
-        //             free(prev_keyword);
-        //             return NULL;
-        //         }
+            pop_stmt_t(cf_stack);
+            (*tokenIdx)++;
 
-        //         size_t curr_keyword_size = sizeof(curr_keyword);
-        //         char* aug_curr_keyword = strncat(" ", curr_keyword, curr_keyword_size);
+            if (tokens[*tokenIdx].type == TOKEN_KEYWORD && strcmp(tokens[*tokenIdx].value.string, "if") == 0) {
+                push_stmt_t(cf_stack, STMT_ELSE_IF);
 
-        //         char* pos_full_keyword = strncat(prev_keyword) 
-        //     } 
+                (*tokenIdx)++;
 
-        // }
+                if (tokens[*tokenIdx].type != TOKEN_LEFT_PARENTHESES) {
+                    fprintf(stderr, "Error: Expected '(' after 'else if'\n");
+                    return NULL;
+                }
+                
+                (*tokenIdx)++;
+
+                struct expr* condition = parse_expression(tokens, tokenIdx);
+                if (!condition) {
+                    return NULL;
+                }
+
+                if (tokens[*tokenIdx].type != TOKEN_RIGHT_PARENTHESES) {
+                    fprintf(stderr, "Error: Expected ')' after condition\n");
+                    return NULL;
+                }
+
+                (*tokenIdx)++;
+
+                if (tokens[*tokenIdx].type != TOKEN_LEFT_BRACE) {
+                    fprintf(stderr, "Error: Expected '{' after condition for 'else if'\n");
+                    return NULL;
+                }
+
+                (*tokenIdx)++;
+
+                struct stmt* body = parse_block(tokens, tokenIdx);
+                if (!body) {
+                    return NULL;
+                }
+
+                struct stmt* else_body = NULL;
+
+                if (tokens[*tokenIdx].type == TOKEN_ELSE) {
+                    else_body = parse_statement(tokens, tokenIdx);
+                    if (!else_body) {
+                        return NULL;
+                    }
+                } else {
+                    pop_stmt_t(cf_stack);
+                }
+
+                stmt = stmt_create(STMT_ELSE_IF, NULL, NULL, condition, NULL, body, else_body, NULL);
+            
+            } else if (tokens[*tokenIdx].type == TOKEN_LEFT_BRACE) {
+                (*tokenIdx)++;
+
+                struct stmt* body = parse_block(tokens, tokenIdx);
+                if (!body) {
+                    return NULL;
+                }
+
+                stmt = stmt_create(STMT_ELSE, NULL, NULL, NULL, NULL, body, NULL, NULL);
+                printf("IN TOKEN_ELSE CREATED STMT_ELSE STATEMENT\n");
+            } else {
+                fprintf(stderr, "Error: Expected 'if' or '{' after 'else'\n");
+                return NULL;
+            }
+            break;
+        }
 
         case TOKEN_IF: {
+            push_stmt_t(cf_stack, STMT_IF);
+
             (*tokenIdx)++;
             if (tokens[*tokenIdx].type != TOKEN_LEFT_PARENTHESES) {
                 fprintf(stderr, "Error: Expected '(' after 'if' keyword\n");
@@ -470,13 +573,10 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
             struct stmt* else_body = NULL;
 
             if (tokens[*tokenIdx].type == TOKEN_ELSE) {
-                (*tokenIdx)++;
-                if (tokens[*tokenIdx].type != TOKEN_LEFT_BRACE) {
-                    fprintf(stderr, "Error: Expected '{'  after else keyword\n");
-                    return NULL;
-                }
-                (*tokenIdx)++;
-                else_body = parse_block(tokens, tokenIdx);
+                printf("Current token type: %d\n", tokens[*tokenIdx].type);
+                else_body = parse_statement(tokens, tokenIdx);
+            } else {
+                pop_stmt_t(cf_stack);
             }
 
             stmt = stmt_create(STMT_IF, NULL, NULL, condition, NULL, body, else_body, NULL);
@@ -583,6 +683,30 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
             break;
         }
 
+        case TOKEN_BREAK: {
+            (*tokenIdx)++;
+
+            if (tokens[*tokenIdx].type != TOKEN_SEMICOLON) {
+                fprintf(stderr, "Error: Expected ';' after 'break' statement\n");
+                return NULL;
+            }
+
+            stmt = stmt_create(STMT_BREAK, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+            break;
+        } 
+
+        case TOKEN_CONTINUE: {
+            (*tokenIdx)++;
+
+            if (tokens[*tokenIdx].type != TOKEN_SEMICOLON) {
+                fprintf(stderr, "Error: Expected ';' after 'continue' statement\n");
+                return NULL;
+            }
+
+            stmt = stmt_create(STMT_CONTINUE, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+            break;
+        }
+
         case TOKEN_RETURN: {
             (*tokenIdx)++;
             struct expr* return_expr = NULL;
@@ -612,7 +736,8 @@ struct stmt* parse_statement(Token* tokens, int* tokenIdx) {
     }
 
     if (stmt->kind != STMT_IF && stmt->kind != STMT_FOR && stmt->kind != STMT_WHILE &&
-        stmt->kind != STMT_DECL && stmt->kind != STMT_RETURN && stmt->kind != STMT_EXPR) {
+        stmt->kind != STMT_DECL && stmt->kind != STMT_RETURN && stmt->kind != STMT_EXPR && 
+        stmt->kind != STMT_ELSE && stmt->kind != STMT_ELSE_IF) {
         printf("Token type: %d\n", tokens[*tokenIdx].type);
         if (tokens[*tokenIdx].type != TOKEN_SEMICOLON) {
             fprintf(stderr, "Error: Expected semicolon\n");
@@ -847,6 +972,13 @@ struct program* build_ast(Token* tokens) {
         exit(EXIT_FAILURE);
     }
 
+    cf_stack = create_stmt_t_stack();
+    if (!cf_stack) {
+        fprintf(stderr, "Error: Failed to create control flow stack\n");
+        free(program);
+        exit(EXIT_FAILURE);
+    }
+
     int tokenIdx = 0;
     struct decl* head = NULL;
     struct decl* current = NULL;
@@ -872,6 +1004,8 @@ struct program* build_ast(Token* tokens) {
             current = new_decl;
         }
     }
+
+    free(cf_stack);
 
     program->declaration = head;
     printf("Program built successfully\n");
@@ -1195,7 +1329,6 @@ void print_stmt(struct stmt* stmt, int indent) {
             printf("UNKNOWN STATEMENT TYPE\n");
     }
     
-    // Print next statement if it exists
     if (stmt->next) {
         print_stmt(stmt->next, indent);
     }
@@ -1224,7 +1357,6 @@ void print_decl(struct decl* decl, int indent) {
         print_stmt(decl->code, indent + 1);
     }
     
-    // Print next declaration if it exists
     if (decl->next) {
         print_decl(decl->next, indent);
     }
