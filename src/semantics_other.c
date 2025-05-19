@@ -388,7 +388,16 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 			// 		break;
 			// }
 		}
+		case EXPR_CALL: {
+			if (!e->left || !e->right) {
+				fprintf(stderr, "Error: EXPR_CALL does not have properly initialized children\n");
+				break;
+			}
 
+			expr_resolve(e->left, stack);
+			expr_resolve(e->right, stack);
+			break;
+		}
 
 		case EXPR_INCREMENT:
 		case EXPR_DECREMENT: {
@@ -562,7 +571,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 		}
 
 		printf("Resolving declaration: %s\n", d->name);
-		symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL: SYMBOL_GLOBAL;
+		symbol_t kind = scope_level(stack) > 1 ? SYMBOL_LOCAL : SYMBOL_GLOBAL;
 		struct symbol* existing_symbol = scope_lookup_current(stack, d->name);
 
 		if (existing_symbol) {
@@ -572,7 +581,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 		}
 
 		size_t bytes = get_num_bytes(d, d->type);
-
+		printf("About to create symbol with type '%d'\n", d->type->kind);
 		d->symbol = create_symbol(kind, d->type, d->name);
 		if (!d->symbol) {
 			fprintf(stderr, "Failed to create symbol for %s\n", d->name);
@@ -842,10 +851,12 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
                 fprintf(stderr, "Error: Symbol '%s' not found in current scope\n", e->name);
                 return type_create(TYPE_UNKNOWN, NULL, NULL);
             }
+            printf("DOWN in EXPR_NAME CASE\n");
             
-            printf("Leaving expr_typecheck with %s\n", e->symbol->name);
-            printf("Offset for '%s' is %zu\n", e->symbol->name, e->symbol->s.byte_offset);
+            // printf("Leaving expr_typecheck with %s\n", e->symbol->name);
+            // printf("Offset for '%s' is %zu\n", e->symbol->name, e->symbol->s.byte_offset);
             result = type_copy(sym->type);
+            printf("Now im here\n");
             break;
         }
 
@@ -968,12 +979,20 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
 
         case EXPR_CALL: {
             // Typecheck function name
-            struct symbol* sym = scope_lookup(stack, e->name, NULL);
+            printf("EXPR_CALL left node: %s\n", e->left->name);
+            int found_scope;
+            struct symbol* sym = scope_lookup(stack, e->left->name, &found_scope);
+            if (!sym) {
+            	printf("Error: Could not find %s at any scope\n", e->left->name);
+            }
+            printf("Found symbol for %s at scope level '(%d)'\n", e->left->name, found_scope);
+            
+            
             if (!sym || sym->type->kind != TYPE_FUNCTION) {
-                fprintf(stderr, "Error: '%s' is not a function\n", e->name);
+                fprintf(stderr, "Error: '%s' is not a function\n", e->left->name);
                 return type_create(TYPE_UNKNOWN, NULL, NULL);
             }
-            
+
             // Check arguments
             struct expr* arg = e->right;
             struct param_list* param = sym->type->params;
@@ -1159,11 +1178,12 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
 
     while (d) {
         if (d->type->kind == TYPE_FUNCTION) {
+        	printf("IN DECL_TYPECHECK -> PROCESSING CURRENT FUNCTION: %s\n", d->name);
             current_function = d;
             
             scope_enter(stack, NULL);
             
-            // Rebuild parameter scope with bindings
+       
             struct param_list* param = d->type->params;
             while (param) {
                 if (param->symbol) {
@@ -1178,7 +1198,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
 
                 while (s) {
                     if (s->kind == STMT_DECL && s->decl) {
-                        // The symbol should already exist from resolve phase
+                        
                         if (s->decl->symbol) {
                             scope_bind(stack, s->decl->symbol);
                         }
@@ -1187,10 +1207,10 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                 }
                 
                 stmt_typecheck(d->code, stack);
-                scope_exit(stack);         // Exit function body scope
+                scope_exit(stack);        
             }
             
-            scope_exit(stack);  // Exit parameter scope
+            scope_exit(stack);  
             current_function = NULL;
         } else {
             if (d->type->kind == TYPE_ARRAY) {

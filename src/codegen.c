@@ -251,12 +251,24 @@ size_t compute_offset(struct symbol* symbol, int* index) {
 			if (symbol->type->kind == TYPE_ARRAY) {
 				if (symbol->type->subtype && symbol->type->subtype->kind == TYPE_INTEGER) {
 					element_size = sizeof(int);
+
 					offset = symbol->s.byte_offset;
 					
-					if (index) {
+					if (index && *index >= 0) {
 						offset += (*index) * element_size;
-					}
-
+					} 
+					printf("In TYPE ARRAY case with subtype TYPE INTEGER with offset: %d\n", offset);
+					return offset;
+				} else if (symbol->type->subtype && symbol->type->subtype->kind == TYPE_CHARACTER || 
+					symbol->type->subtype->kind == TYPE_BOOLEAN) {
+						
+						element_size = sizeof(char);
+						offset = symbol->s.byte_offset;
+						
+						if (index && *index >= 0) {
+							offset += (*index) * element_size;
+						} 
+					
 					return offset;
 				}
 			} else if (symbol->type->kind == TYPE_INTEGER) {
@@ -380,28 +392,53 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		case EXPR_ASSIGNMENT:
 			printf("In EXPR_ASSIGNMENT\n");
 		    expr_codegen(sregs, writer, e->right);
-		    
-		    if (e->left->kind == EXPR_SUBSCRIPT) {
-		    	size_t offset = compute_offset(e->left->left->symbol, &e->right->integer_value);
-		    	snprintf(buffer, sizeof(buffer), "\tmov [rbp - %zu], %s",
-		    		offset,
-		    		scratch_name(sregs, e->right->reg));
-		    	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+		  	expr_codegen(sregs, writer, e->left);
+		
+		    	
 
-		    } else {
-			    snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-			        symbol_codegen(e->left->symbol),
-			        scratch_name(sregs, e->right->reg));
+		    // 	if (index >= 0) {
+		    // 		size_t offset = compute_offset(e->left->left->symbol, &index);
+		    // 		if (offset != 1) {
+		    // 			snprintf(buffer, sizeof(buffer), "\tmov [rbp - %zu], %s",
+		    // 				offset,
+		    // 				scratch_name(sregs, e->right->reg));
+		    // 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+		    // 		} 
+		    // 	} else {
+            //        int temp_reg = scratch_alloc();
 
-			    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-			    e->reg = e->right->reg;
-			    printf("Leaving EXPR_ASSIGNMENT\n");
+            //        	snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+            //        		scratch_name(sregs, temp_reg),
+            //        		scratch_name(sregs, e->right->reg));
+            //       	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-		    }
+            //       	snprintf(buffer, sizeof(buffer))
+
+                
+                    
+                 
+            //     }
+		    // 	size_t offset = compute_offset(e->left->left->symbol, &e->right->integer_value);
+		    // 	snprintf(buffer, sizeof(buffer), "\tmov [rbp - %zu], %s",
+		    // 		offset,
+		    // 		scratch_name(sregs, e->right->reg));
+		    // 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+		    // } else {
+			//     snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
+			//         symbol_codegen(e->left->symbol),
+			//         scratch_name(sregs, e->right->reg));
+
+			//     asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			//     e->reg = e->right->reg;
+			//     printf("Leaving EXPR_ASSIGNMENT\n");
+
+		    // }
 
 		    break;
 
-		case EXPR_NAME:
+
+		case EXPR_NAME: {
 			printf("In EXPR_NAME with %s\n", e->symbol->name);
 			
 			e->reg = scratch_alloc(sregs);
@@ -411,7 +448,66 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				offset);
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 				
-			break;
+			break;			
+		}
+
+		case EXPR_CALL: {
+			static const char* regs[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+			if (!e->left || !e->right) {
+				fprintf(stderr, "Error: EXPR_CALL does not have valid children\n");
+				return;
+			}
+
+			struct expr* current_arg = e->right;
+			while (current_arg) {
+				struct expr* next = current_arg->right;
+				expr_codegen(sregs, writer, current_arg);
+				current_arg = next;
+			}
+
+			int count = 0;
+			
+			current_arg = e->right;		
+			while (current_arg && count < 6) {
+				struct expr* next = current_arg->right;
+				char* curr_reg = regs[count]; 
+
+				switch (current_arg->kind) {
+					case EXPR_NAME:
+					case EXPR_INTEGER: {
+						snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+							curr_reg,
+							scratch_name(sregs, current_arg->reg)
+						);
+
+						break;
+					}
+
+					
+				} 
+
+				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+				count++;
+				current_arg = next;	
+			}
+
+			while (current_arg) {
+				struct expr* next = current_arg->right;
+				snprintf(buffer, sizeof(buffer), "")
+
+				current_arg = next;
+			}
+
+			// if there are more than 6 arguments to function
+
+			// while (current_arg) {
+
+			// }
+
+			snprintf(buffer, sizeof(buffer), "\tcall %s", e->left->name);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+		}
 
 		case EXPR_INTEGER: {
 			e->reg = scratch_alloc(sregs);
@@ -644,7 +740,7 @@ int peek_label(struct LabelStack* label_stack, int offset) {
 	return -1;
 }
 
-struct CodegenContext create_codegen_context(int loop_condition, bool in_loop) {
+struct CodegenContext create_codegen_context(int loop_condition,  bool in_loop) {
 	struct CodegenContext context = {
 		.loop_condition = loop_condition,
 		.in_loop = in_loop
@@ -658,18 +754,46 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     if (!sregs || !s) return;
 
     
-    char buffer[56];
+    char buffer[256];
     switch (s->kind) {
-        case STMT_DECL:
+        case STMT_DECL: {
             decl_codegen(sregs, writer, s->decl, true); 
             break;
+        }
 
-        case STMT_EXPR:
+        case STMT_EXPR: {
         	expr_codegen(sregs, writer, s->expr);
         	if (s->expr->reg != -1) {
         		scratch_free(sregs, s->expr->reg);
         	}
-        	break;        	
+        	break;       
+
+        }
+
+        // case STMT_BREAK: {
+        // 	if (context->loop_condition != -1 && context->in_loop) {
+        // 		if (context->loop_end) {
+        // 			snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(context->loop_end));
+        // 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        // 		}
+        // 	} else {
+        // 		fprintf(stderr, "Warning: You have 'break' statement outside of a loop\n");
+        // 	}
+
+        // 	break;
+
+        // }
+
+        case STMT_CONTINUE: {
+        	if (context->loop_condition != -1 && context->in_loop) {
+        		snprintf(buffer, sizeof(buffer), "\tjmp %s", label_name(context->loop_condition));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+        	} else {
+        		fprintf(stderr, "Warning: You have 'continue' statement outside of a loop\n");
+        	}
+
+        	break;
+        }	
 
         case STMT_IF: {
         	int condition_true_label = label_create();
@@ -828,6 +952,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         	// push_label(stack, loop_start);
 
         	context->loop_condition = loop_condition;
+        	// context->loop_end = loop_end;
         	context->in_loop = true;
 
         	if (s->decl) {
@@ -914,6 +1039,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         	// pop_label(stack);
 
         	context->loop_condition = -1;
+        	// context->loop_end = -1;
         	context->in_loop = false;
 
         	break;

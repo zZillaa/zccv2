@@ -238,6 +238,32 @@ expr_t get_expr_type(Token* token) {
     }
 }
 
+struct expr* parse_arg_exprs(Token* tokens, int* tokenIdx) {
+    struct expr* head = NULL;
+    struct expr* current = NULL;
+
+    while (tokens[*tokenIdx].type != TOKEN_RIGHT_PARENTHESES) {
+        struct expr* node = parse_expression(tokens, tokenIdx);
+        if (!node) {
+            fprintf(stderr, "Error: arg expr node is null\n");
+            return NULL;
+        }
+
+        if (!head) {
+            head = node;
+            current = node;
+        } else {
+            current->right = node;
+            current = node;
+        }
+
+        if (tokens[*tokenIdx].type == TOKEN_COMMA) (*tokenIdx)++;
+    }
+
+
+    return head;
+}
+
 struct expr* parse_factor(Token* tokens, int* tokenIdx) {
     struct expr* expr_node = NULL;
 
@@ -262,15 +288,25 @@ struct expr* parse_factor(Token* tokens, int* tokenIdx) {
                 expr_node = expr_create(EXPR_SUBSCRIPT, expr_node, index_expr);      
                 printf("EXPR SUBSCRIPT NODE LEFT KIND: %d\n", expr_node->left->kind);
                 printf("EXPR SUBSCRIPT NODE RIGHT KIND: %d\n", expr_node->right->kind);
+            
+            } else if (tokens[*tokenIdx].type == TOKEN_INCREMENT || tokens[*tokenIdx].type == TOKEN_DECREMENT) {
+                expr_t op_kind = get_expr_type(&tokens[*tokenIdx]);
+                (*tokenIdx)++;
+                struct expr* postfix_epr = expr_create(op_kind, expr_node, NULL);
+                return postfix_epr;
+
+            } else if (tokens[*tokenIdx].type == TOKEN_LEFT_PARENTHESES) {
+                (*tokenIdx)++;
+
+                struct expr* arguments_expr = parse_arg_exprs(tokens, tokenIdx);
+                if (tokens[*tokenIdx].type != TOKEN_RIGHT_PARENTHESES) {
+                    fprintf(stderr, "Error: Expected ')' after listing arguments\n");
+                    return NULL; 
+                }
+                (*tokenIdx)++;
+                expr_node = expr_create(EXPR_CALL, expr_node, arguments_expr);
             }
 
-            if (tokens[*tokenIdx].type == TOKEN_INCREMENT ||
-                tokens[*tokenIdx].type == TOKEN_DECREMENT) {
-                expr_t op_kind = get_expr_type(&tokens[*tokenIdx]);
-            (*tokenIdx)++;
-            struct expr* postfix_epr = expr_create(op_kind, expr_node, NULL);
-            return postfix_epr;
-            }
             return expr_node;
 
         case TOKEN_LEFT_PARENTHESES:

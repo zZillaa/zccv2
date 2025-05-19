@@ -1,6 +1,7 @@
 section .data
 
 section .text
+global add
 global function
 global main
 global _start
@@ -8,10 +9,19 @@ global _start
 _start:
 
 
+add:
+	push rbp
+	mov rbp, rsp
+	sub rsp, 16
+
+	mov rax, 0
+	leave
+	ret
+
 function:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 48
+	sub rsp, 32
 
 	mov rax, 2
 	mov [rbp - 4], rax
@@ -26,7 +36,7 @@ function:
 	mov [rbp - 24], 0
 .L1: 
 	mov rax, [rbp - 24]
-	mov rbx, 10
+	mov rbx, 3
 	cmp rax, rbx
 	jg .L3
 	mov rax, [rbp - 24]
@@ -39,34 +49,49 @@ function:
 	jg .L5
 .L4:
 	mov rax, 5
-	mov [rbp - 32], rax
-	jmp .L2
-.L5:
 	mov rbx, [rbp - 24]
 	imul rbx, 4
 	lea r9, [rbp - 12]
 	add r9, rbx
 	mov r8, [r9]
+	jmp .L2
+.L5:
+	mov rbx, [rbp - 24]
+	imul rbx, 4
+	lea r10, [rbp - 12]
+	add r10, rbx
+	mov r9, [r10]
 	mov rbx, 10
-	cmp r8, rbx
-	jg .L7
+	cmp r9, rbx
+	jle .L7
 .L6:
 	mov rbx, 2
-	mov [rbp - 20], rbx
+	mov r9, [rbp - 24]
+	imul r9, 4
+	lea r11, [rbp - 12]
+	add r11, r9
+	mov r10, [r11]
 	jmp .L2
 .L7:
-	mov r8, 8
-	mov [rbp - 44], r8
+	mov r9, 8
+	mov r11, [rbp - 24]
+	imul r11, 4
+	lea r13, [rbp - 12]
+	add r13, r11
+	mov r12, [r13]
 .L2:
 	inc [rbp - 24]
 	jmp .L1
 .L3:
-
-	mov dword [rbp - 28], 0
-	mov dword [rbp - 32], 4
-	mov dword [rbp - 36], 5
-	mov dword [rbp - 40], 4
-
+	mov r11, 3
+	mov [rbp - 28], r11
+	mov r11, [rbp - 28]
+	mov r13, 4
+	mov rdi, r11
+	mov rsi, r13
+	call add
+	mov r14, 0
+	mov [rbp - 32], r14
 	mov rax, 0
 	leave
 	ret
@@ -76,8 +101,8 @@ main:
 	mov rbp, rsp
 	sub rsp, 16
 
-	mov r9, 20
-	mov [rbp - 4], r9
+	mov r14, 20
+	mov [rbp - 4], r14
 	mov rax, 0
 	leave
 	ret
