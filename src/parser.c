@@ -248,6 +248,7 @@ struct expr* parse_arg_exprs(Token* tokens, int* tokenIdx) {
             fprintf(stderr, "Error: arg expr node is null\n");
             return NULL;
         }
+        node->kind = EXPR_ARG;
 
         if (!head) {
             head = node;

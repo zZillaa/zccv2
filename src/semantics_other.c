@@ -262,8 +262,10 @@ size_t get_num_bytes(struct decl* d, struct type* t) {
 }
 
 
-void param_list_resolve(struct param_list* params, struct stack* stack) {
+void param_list_resolve(struct param_list* params, struct stack* stack, int* param_offset) {
 	if (!params || !stack) return;
+
+	size_t param_size;
 
 	int param_index = 0;
 	printf("Resolving parameter list\n");
@@ -274,6 +276,30 @@ void param_list_resolve(struct param_list* params, struct stack* stack) {
 		if (params->symbol) {
 			scope_bind(stack, params->symbol);
 			params->symbol->s.param_index = param_index++;
+			
+			switch (params->type->kind) {
+				case TYPE_INTEGER: {
+					param_size = sizeof(int);
+					break;
+				}
+				case TYPE_CHARACTER:
+				case TYPE_BOOLEAN: {
+					param_size = sizeof(char);
+					break;
+				}
+			}
+
+			if (param_offset) {
+				if (*param_offset == 0) {
+					
+					params->symbol->s.byte_offset = param_size;
+					*param_offset += param_size;
+				} else {
+					params->symbol->s.byte_offset = *param_offset + param_size; 
+					*param_offset += param_size;
+				}
+			}
+
 			printf("Bound parameter: %s\n", params->name);
 		} else {
 			fprintf(stderr, "Failed to create symbol for parameter: %s\n", params->name);
@@ -305,6 +331,7 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 						e->kind == EXPR_ARRAY ? "EXPR_ARRAY": "EXPR_NAME",
 						e->name, found_scope,
 						symbol->kind == SYMBOL_LOCAL ? "LOCAL": "GLOBAL");
+
 					break;
 
 				} else {
@@ -388,14 +415,27 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 			// 		break;
 			// }
 		}
+
+		case EXPR_ARG: {
+			printf("IN EXPR_ARG\n");
+			if (e->right) {
+				expr_resolve(e->right, stack);
+			}
+			break;
+		}
+
 		case EXPR_CALL: {
 			if (!e->left || !e->right) {
 				fprintf(stderr, "Error: EXPR_CALL does not have properly initialized children\n");
 				break;
 			}
+			printf("IN EXPR_CALL for: %s\n", e->left->name);
 
 			expr_resolve(e->left, stack);
-			expr_resolve(e->right, stack);
+			if (e->right) {
+				expr_resolve(e->right, stack);
+			}
+			
 			break;
 		}
 
@@ -404,7 +444,11 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 			if (e->left) expr_resolve(e->left, stack);
 			break;
 		}
-
+		
+		case EXPR_ADD:
+		case EXPR_SUB:
+		case EXPR_MUL:
+		case EXPR_DIV:
 		case EXPR_ASSIGNMENT:
 		case EXPR_ADD_AND_ASSIGN:
 		case EXPR_SUB_AND_ASSIGN:
@@ -527,6 +571,7 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 			}
 
 			case STMT_RETURN: {
+				printf("IN STMT_RESOLVE CASE STMT_RETURN\n");
 				if (stmt->expr) {
 					expr_resolve(stmt->expr, stack);
 				}
@@ -558,10 +603,12 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 
 	static int local_var_counter = 0;
 	static int total_offset = 0;
+	static int param_offset = 0;
 
 	if (d->type && d->type->kind == TYPE_FUNCTION) {
 		local_var_counter = 0;
 		total_offset = 0;
+		param_offset = 0;
 	} 
 
 	while (d) {
@@ -633,7 +680,7 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 			int original_scope = stack->top;
 
 			scope_enter(stack, NULL);
-			param_list_resolve(d->type->params, stack);
+			param_list_resolve(d->type->params, stack, &param_offset);
 
 			scope_enter(stack, NULL);
 			stmt_resolve(d->code, stack);
@@ -664,8 +711,9 @@ void decl_resolve(struct decl* d, struct stack* stack) {
 			}
 
 			current_function = NULL;
-			local_var_counter = 0;
-			total_offset = 0;
+			// local_var_counter = 0;
+			// total_offset = 0;
+
 		} else if (d->type->kind == TYPE_ARRAY) {
 			if (d->value && d->value->kind == EXPR_ARRAY) {
 
@@ -859,6 +907,18 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
             printf("Now im here\n");
             break;
         }
+
+    	case EXPR_ARG: {
+    		int found_scope;
+    		struct symbol* sym = scope_lookup(stack, e->name, &found_scope);
+    		if (!sym) {
+    			fprintf(stderr, "Error: Symbol '%s' not found in current scope\n", e->name);
+    			return type_create(TYPE_UNKNOWN, NULL, NULL);
+    		}
+
+    		result = type_copy(sym->type);
+    		break;
+    	}
 
     	case EXPR_ARRAY_VAL:
     		result = type_create(TYPE_INTEGER, NULL, NULL);

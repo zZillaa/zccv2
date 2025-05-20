@@ -9,6 +9,8 @@
 
 #define MAX_SCRATCH_REGISTERS 10
 #define MAX_LABELS 100
+#define NUM_FUNC_ARGUMENTS 15
+#define NUM_PARAMS 15
 
 typedef enum register_state_t {
 	REGISTER_FREE,
@@ -56,6 +58,16 @@ typedef enum {
 	TEXT_DIRECTIVE,
 } section_t;
 
+struct FunctionArgumentStack {
+	struct expr* args[NUM_FUNC_ARGUMENTS];
+	int top;
+};
+
+struct FunctionParamStack {
+	struct param_list* func_params[NUM_PARAMS];
+	int top;
+};
+
 // For printf calls
 struct FormatQueue {
 	char** items;
@@ -82,6 +94,13 @@ struct CodegenContext {
 	int loop_condition;
 	bool in_loop;
 };
+
+struct FunctionParamStack* create_param_stack();
+void push_param(struct FunctionParamStack* func_param_stack, struct param_list* params);
+
+struct FunctionArgumentStack* create_arg_stack();
+void push_arg(struct FunctionArgumentStack* func_arg_stack, struct expr* e);
+int pop_arg(struct FunctionArgumentStack* func_arg_stack);
 
 struct CodegenContext create_codegen_context(int loop_condition, bool in_loop);
 struct LabelStack* create_label_stack();
@@ -124,6 +143,7 @@ const char* label_name( int label );
 size_t compute_offset(struct symbol* symbol, int* index);
 
 char* symbol_codegen(struct symbol* sym);
+void param_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct param_list* params);
 void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);
 void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s, struct CodegenContext* context);
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d, bool is_local);

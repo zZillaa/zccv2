@@ -136,6 +136,7 @@ struct param_list {
     struct type* type;
     struct param_list* next;
     struct symbol* symbol;
+    int reg;
 };
 
 struct program {
@@ -256,7 +257,7 @@ void program_resolve(struct program* p, struct stack* stack);
 void decl_resolve(struct decl* d, struct stack* stack);
 void expr_resolve(struct expr* e, struct stack* stack);
 void stmt_resolve(struct stmt* stmt, struct stack* stack);
-void param_list_resolve(struct param_list* params, struct stack* stack);
+void param_list_resolve(struct param_list* params, struct stack* stack, int* param_offset);
 
 
 struct type* type_create(type_t kind, struct type* subtype, struct param_list* params);
