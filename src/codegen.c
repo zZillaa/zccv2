@@ -4,6 +4,8 @@
 
 static int label_counter = 0;
 
+static const char* regs[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+
 struct Register* create_register(register_state_t state, const char* name) {
 	struct Register* reg = malloc(sizeof(struct Register));
 	if (!reg) return NULL;
@@ -149,7 +151,7 @@ char* symbol_codegen(struct symbol* sym) {
 		case SYMBOL_LOCAL:
 			size_t offset;	
 			if (sym->type->kind == TYPE_INTEGER) {
-				snprintf(buffer, sizeof(buffer), "rbp - %zu", sym->s.byte_offset);
+				snprintf(buffer, sizeof(buffer), "rbp - %d", 16 + (sym->s.param_index + 8));
 			} 
 			
 			return buffer;  
@@ -273,8 +275,9 @@ size_t compute_offset(struct symbol* symbol, int* index) {
 					return offset;
 				}
 			} else if (symbol->type->kind == TYPE_INTEGER) {
-				printf("Returning byte offset for %s: %zu\n", symbol->name, symbol->s.byte_offset);
-				return 16 + (symbol->s.param_index * 8);
+				printf("\033[1;33mReturning byte offset for %s: %zu\033[0m\n", symbol->name, symbol->s.byte_offset);
+				
+				return symbol->s.byte_offset;
 			}
 		}
 
@@ -509,58 +512,46 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_ARG: {
 			printf("IN CODEGEN IN EXPR_ARG CASE\n");
-			static const char* regs[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 			printf("I got here\n");
 
 			int count = 0;
-			struct expr* arg = e;
 			size_t arg_offset;
-			while (arg && count < 6) {
-				printf("About to process args\n");
-				struct expr* next_arg = arg->right;	
-				if (arg->symbol && arg->symbol->type == TYPE_INTEGER) {
-					printf("Got offset\n");
-					arg_offset = compute_offset(arg->symbol, NULL);
-					printf("I got an integer\n");
-					snprintf(buffer, sizeof(buffer), "\tmov %s, [rbp - %zu]",
-						regs[count],
-						arg_offset
-					);
-				} else if (arg->symbol && arg->symbol->type == TYPE_ARRAY) {
-					arg_offset = compute_offset(arg->symbol, NULL);
-					snprintf(buffer, sizeof(buffer), "\tlea %s, [rbp - %zu]",
-						regs[count],
-						arg_offset
-					);
-				} else {
-					printf("Im in this case\n");
-					snprintf(buffer, sizeof(buffer), "\tmov %s, %d",
-						regs[count],
-						arg->integer_value
-					);
-				}
-				count++;
-				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-				arg = next_arg;
+			printf("\033[1;31mProcessing ARGS\033[0m\n");
+				
+			if (!e->symbol) {
+				printf("\033[1;31m'%s' does not have a symbol\033[0m\n", e->name);
 			}
 
+			e->reg = scratch_alloc(sregs);
+			size_t offset = compute_offset(e->symbol, NULL);
+
+			printf("\033[1;31mOffset for '%s' is: %zu\033[0m\n", e->name, offset);
+
+			snprintf(buffer, sizeof(buffer), "\tmov %s, [rbp - %zu]", scratch_name(sregs, e->reg), offset);
+			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 			break;
 
 		}
 
-
 		case EXPR_CALL: {
 			printf("IN EXPR_CALL CASE\n");
-			static const char* regs[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 			if (!e->left || !e->right) {
 				fprintf(stderr, "Error: EXPR_CALL does not have valid children\n");
 				return;
 			}
+
 			int count = 0;
 			struct expr* current_arg = e->right;
 			while (current_arg && count < 6) {
 				struct expr* next = current_arg->right;
 				expr_codegen(sregs, writer, current_arg, true);
+
+				snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+					regs[count],
+					scratch_name(sregs, current_arg->reg));
+				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+				scratch_free(sregs, current_arg->reg);
 				count++;
 				current_arg = next;
 			}
@@ -606,6 +597,10 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
 			e->reg = scratch_alloc(sregs);
+			while (strcmp(scratch_name(sregs, e->reg), "rax") == 0) {
+				e->reg = scratch_alloc(sregs);
+			}
+
 			snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
 				scratch_name(sregs, e->reg));
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
@@ -1290,7 +1285,7 @@ void push_param(struct FunctionParamStack* func_param_stack, struct param_list* 
 }
 
 void param_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct param_list* params) {
-	static char* regs[6] = {"rsi", "rdi", "rcx", "rdx", "r8", "r9"};
+	static char* regs[6] = {"rdi", "rsi", "rcx", "rdx", "r8", "r9"};
 	
 	char buffer[256];
 	int count = 0;
@@ -1446,8 +1441,9 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
             		d->value->symbol = d->symbol;
             	}
             	expr_codegen(sregs, writer, d->value, false);
-            	snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
-            		symbol_codegen(d->symbol),
+            	size_t offset = compute_offset(d->value->symbol, NULL);
+            	snprintf(buffer, sizeof(buffer), "\tmov [rbp - %zu], %s",
+            		offset,
             		scratch_name(sregs, d->value->reg));
             	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
             	scratch_free(sregs, d->value->reg);

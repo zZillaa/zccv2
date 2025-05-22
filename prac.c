@@ -2,8 +2,8 @@
 #define MAX_SHOES 200
 #define NUMBER 5
 
-int add(int a, int z) {
-	return a + z;
+int add(int z) {
+	return z;
 }
 
 int function() {
@@ -12,13 +12,11 @@ int function() {
 
 	int z = 3;
 	int arr[NUMBER] = {1, 2, 3, 4, 5};
-	int sum = add(4, z);
+	int sum = add(z);
 
 
 	return 0;
 }
-
-
 
 int main() {
 	int x = 20;

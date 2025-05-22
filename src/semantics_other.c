@@ -417,13 +417,17 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 		}
 
 		case EXPR_ARG: {
-			printf("IN EXPR_ARG\n");
+			printf("\033[1;31mIN EXPR_ARG for:\033[0m %s\n", e->name ? e->name : "unnamed");
 			int found_scope;
 			struct symbol* sym = scope_lookup(stack, e->name, &found_scope);
 			if (sym) {
 				printf("Found symbol '%s' at scope level '%d'\n", sym->name, found_scope);
+				e->symbol = sym;
+			} else {
+				fprintf(stderr, "Error: Symbol '%s' not found for EXPR_ARG\n", e->name);
+				debug_print_scope_stack(stack, "EXPR_ARG symbol lookup failed\n");
 			}
-			e->symbol = sym;
+			
 			if (e->right) {
 				expr_resolve(e->right, stack);
 			}
@@ -595,7 +599,7 @@ void stmt_resolve(struct stmt* stmt, struct stack* stack) {
 
 void print_symbol_table(struct stack* stack) {
 	for (int i = stack->top; i >= 0; i--) {
-		printf("Scope level: %d\n", i);
+		printf("\033[1;31mScope level:\033[0m %d\n", i);
 		struct symbol* current = stack->symbol_tables[i]->symbol;
 		while (current) {
 			printf("   Symbol: %s, Type: %d\n", current->name, current->type->kind);
@@ -915,13 +919,17 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
         }
 
     	case EXPR_ARG: {
+    		if (e->symbol) {
+    			result = type_copy(e->symbol->type);
+    		}
+
     		int found_scope;
     		struct symbol* sym = scope_lookup(stack, e->name, &found_scope);
     		if (!sym) {
-    			fprintf(stderr, "Error: Symbol '%s' not found in current scope\n", e->name);
+    			fprintf(stderr, "\033[1;31mError: Symbol '%s' not found in current scope\033[0m\n", e->name);
     			return type_create(TYPE_UNKNOWN, NULL, NULL);
     		}
-
+    		e->symbol = sym;
     		result = type_copy(sym->type);
     		break;
     	}
@@ -1087,8 +1095,8 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
             break;
     }
 
-    // if (lt) type_delete(lt);
-    // if (rt) type_delete(rt);
+    if (lt) type_delete(lt);
+    if (rt) type_delete(rt);
     return result;
 }
 
@@ -1113,7 +1121,7 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
             case STMT_EXPR:
                 if (s->expr) {
                     struct type* t = expr_typecheck(s->expr, stack);
-                    // type_delete(t);
+                    type_delete(t);
                     s->expr->symbol->type = t;
                 }
                 break;
@@ -1134,7 +1142,7 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                     if (!t || t->kind != TYPE_BOOLEAN) {
                         fprintf(stderr, "Error: If condition must be boolean type\n");
                     }
-                    // type_delete(t);
+                    type_delete(t);
                 }
 
                 if (s->body) {
@@ -1169,12 +1177,12 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                     if (!t_cond || t_cond->kind != TYPE_BOOLEAN) {
                         fprintf(stderr, "Error: For loop condition must be boolean type\n");
                     }
-                    // type_delete(t_cond);
+                    type_delete(t_cond);
                 }
 
                 if (s->next_expr) {
                     struct type* t_next = expr_typecheck(s->next_expr, stack);
-                    // type_delete(t_next);
+                    type_delete(t_next);
                 }
 
                 if (s->body) {
@@ -1189,7 +1197,7 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                     if (!t || t->kind != TYPE_BOOLEAN) {
                         fprintf(stderr, "Error: While condition must be boolean type\n");
                     }
-                    // type_delete(t);
+                    type_delete(t);
                 }
 
                 if (s->body) {
@@ -1217,7 +1225,7 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                         fprintf(stderr, "Error: Return type mismatch in function '%s'\n", 
                                 current_function->name);
                     }
-                    // type_delete(return_type);
+                    type_delete(return_type);
                 } else if (current_function->type->subtype->kind != TYPE_VOID) {
                     fprintf(stderr, "Error: Non-void function '%s' missing return value\n",
                             current_function->name);
@@ -1283,7 +1291,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
         	printf("IN DECL_TYPECHECK with TYPE_INTEGER\n");
         	if (d->value) {
         		struct type* t = expr_typecheck(d->value, stack);
-        		// type_delete(t);
+        		type_delete(t);
 
         	}
         } else {
@@ -1295,7 +1303,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                         if (size_type->kind != TYPE_INTEGER) {
                             fprintf(stderr, "Error: Array size must be integer\n");
                         }
-                        // type_delete(size_type);
+                        type_delete(size_type);
                     }
 
                     if (d->value->right) {
@@ -1306,7 +1314,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                             if (!type_equals(value_type, d->type->subtype)) {
                                 fprintf(stderr, "Error: Array initialization value type mismatch\n");
                             }
-                            // type_delete(value_type);
+                            type_delete(value_type);
                             init_value = init_value->right;
                         }
                     }
@@ -1317,7 +1325,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                 if (!type_equals(value_type, d->type)) {
                     fprintf(stderr, "Error: Type mismatch in declaration of '%s'\n", d->name);
                 }
-                // type_delete(value_type);
+                type_delete(value_type);
             }
         }
         
