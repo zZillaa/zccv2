@@ -144,7 +144,7 @@ size_t compute_offset(struct symbol* symbol, int* index);
 
 char* symbol_codegen(struct symbol* sym);
 void param_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct param_list* params);
-void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e);
+void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e, bool is_func_argument);
 void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct stmt* s, struct CodegenContext* context);
 void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct decl* d, bool is_local);
 

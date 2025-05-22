@@ -301,9 +301,6 @@ struct FunctionArgumentStack* create_arg_stack() {
 		return NULL;
 	}
 
-	for (int i = 0; i < NUM_FUNC_ARGUMENTS; i++) {
-		func_arg_stack->args[i] = NULL;
-	}
 
 	func_arg_stack->top = -1;
 	return func_arg_stack;
@@ -325,7 +322,7 @@ int pop_arg(struct FunctionArgumentStack* func_arg_stack) {
 	return -1;
 }
 
-void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e) {
+void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct expr* e, bool is_func_argument) {
 	if (!sregs || !e) return;
 
 	char buffer[256];
@@ -344,12 +341,12 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 		case EXPR_MUL: {
 			printf("IN EXPR_MUL\n");
-		    expr_codegen(sregs, writer, e->left);
-		    expr_codegen(sregs, writer, e->right);
+		    expr_codegen(sregs, writer, e->left, false);
+		    expr_codegen(sregs, writer, e->right, false);
 		    
 		    snprintf(buffer, sizeof(buffer), "\timul %s, %s",
-		     scratch_name(sregs, e->left->reg),
-		     scratch_name(sregs, e->right->reg));
+		    	scratch_name(sregs, e->left->reg),
+		     	scratch_name(sregs, e->right->reg));
 		    asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 		    
 		    e->reg = scratch_alloc(sregs);
@@ -373,8 +370,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 	 	case EXPR_SUB:
 		case EXPR_ADD: {
 			printf("IN EXPR_ADD\n");
-			expr_codegen(sregs, writer, e->left);
-			expr_codegen(sregs, writer, e->right);
+			expr_codegen(sregs, writer, e->left, false);
+			expr_codegen(sregs, writer, e->right, false);
 			printf("Got the regs for the children\n");
 			snprintf(buffer, sizeof(buffer), "\t%s %s, %s", 
 				(e->kind == EXPR_ADD) ? "add" : "sub",
@@ -403,8 +400,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		case EXPR_LESS_EQUAL:
 		case EXPR_GREATER:
 		case EXPR_LESS: {
-			expr_codegen(sregs, writer, e->left);
-			expr_codegen(sregs, writer, e->right);
+			expr_codegen(sregs, writer, e->left, false);
+			expr_codegen(sregs, writer, e->right, false);
 
 			snprintf(buffer, sizeof(buffer), "\tcmp %s, %s",
 				scratch_name(sregs, e->left->reg),
@@ -440,8 +437,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		
 		case EXPR_ASSIGNMENT:
 			printf("In EXPR_ASSIGNMENT\n");
-		    expr_codegen(sregs, writer, e->right);
-		  	expr_codegen(sregs, writer, e->left);
+		    expr_codegen(sregs, writer, e->right, false);
+		  	expr_codegen(sregs, writer, e->left, false);
 
 		  	if (e->right->kind == EXPR_CALL) {
 		  		snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
@@ -513,19 +510,37 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 		case EXPR_ARG: {
 			printf("IN CODEGEN IN EXPR_ARG CASE\n");
 			static const char* regs[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-
+			printf("I got here\n");
 
 			int count = 0;
 			struct expr* arg = e;
+			size_t arg_offset;
 			while (arg && count < 6) {
-				struct expr* next_arg = arg->right;
-				arg->reg = scratch_alloc(sregs);
-				snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
-					scratch_name(sregs, arg->reg),
-					regs[count]
-				);
-				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+				printf("About to process args\n");
+				struct expr* next_arg = arg->right;	
+				if (arg->symbol && arg->symbol->type == TYPE_INTEGER) {
+					printf("Got offset\n");
+					arg_offset = compute_offset(arg->symbol, NULL);
+					printf("I got an integer\n");
+					snprintf(buffer, sizeof(buffer), "\tmov %s, [rbp - %zu]",
+						regs[count],
+						arg_offset
+					);
+				} else if (arg->symbol && arg->symbol->type == TYPE_ARRAY) {
+					arg_offset = compute_offset(arg->symbol, NULL);
+					snprintf(buffer, sizeof(buffer), "\tlea %s, [rbp - %zu]",
+						regs[count],
+						arg_offset
+					);
+				} else {
+					printf("Im in this case\n");
+					snprintf(buffer, sizeof(buffer), "\tmov %s, %d",
+						regs[count],
+						arg->integer_value
+					);
+				}
 				count++;
+				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 				arg = next_arg;
 			}
 
@@ -541,29 +556,32 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				fprintf(stderr, "Error: EXPR_CALL does not have valid children\n");
 				return;
 			}
-			
+			int count = 0;
 			struct expr* current_arg = e->right;
-			while (current_arg) {
+			while (current_arg && count < 6) {
 				struct expr* next = current_arg->right;
-				expr_codegen(sregs, writer, current_arg);
+				expr_codegen(sregs, writer, current_arg, true);
+				count++;
 				current_arg = next;
 			}
 
-			int count = 0;
+
+			// int count = 0;
 			
-			current_arg = e->right;		
-			while (current_arg && count < 6) {
-				struct expr* next = current_arg->right;
-				char* curr_reg = regs[count]; 
 
-				snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
-					curr_reg,
-					scratch_name(sregs, current_arg->reg));
-				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			// current_arg = e->right;		
+			// while (current_arg && count < 6) {
+			// 	struct expr* next = current_arg->right;
+			// 	char* curr_reg = regs[count]; 
 
-				count++;
-				current_arg = next;	
-			}
+			// 	snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
+			// 		curr_reg,
+			// 		scratch_name(sregs, current_arg->reg));
+			// 	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+
+			// 	count++;
+			// 	current_arg = next;	
+			// }
 
 			// If there are more than 6 arguments, process remaining args
 
@@ -573,37 +591,17 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				return;
 			}
 
-			while (current_arg) {
-				struct expr* next = current_arg->right;
-				push_arg(func_arg_stack, current_arg);
-				current_arg = next;
-			}
+			// while (current_arg) {
+			// 	struct expr* next = current_arg->right;
+			// 	push_arg(func_arg_stack, current_arg);
+			// 	current_arg = next;
+			// }
 
-			for (int i = func_arg_stack->top; i >= 0; i--) {
-				int temp_reg = scratch_alloc(sregs);
-				switch (func_arg_stack->args[i]->kind) {
-					case EXPR_NAME: {
-						expr_codegen(sregs, writer, func_arg_stack->args[i]);
-						snprintf(buffer, sizeof(buffer), "\tmov %s, %s",
-							temp_reg,
-							scratch_name(sregs, func_arg_stack->args[i]->reg)
-						);
-						asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			// for (int i = func_arg_stack->top; i >= 0; i--) {
+			// 	expr_codegen(sregs, writer, func_arg_stack->args[i], true);
 
-						snprintf(buffer, sizeof(buffer), "\tpush %s", scratch_name(sregs, temp_reg));
-						asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			// }
 
-						break;
-					}
-					case EXPR_INTEGER: {
-						snprintf(buffer, sizeof(buffer), "\tpush %d", func_arg_stack->args[i]->integer_value);
-						asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-						break;
-					}
-					
-				}
-
-			}
 			snprintf(buffer, sizeof(buffer), "\tcall %s", e->left->name);
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
@@ -611,6 +609,8 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 			snprintf(buffer, sizeof(buffer), "\tmov %s, rax",
 				scratch_name(sregs, e->reg));
 			asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+			
+			is_func_argument = false;
 
 			free(func_arg_stack);
 
@@ -639,7 +639,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				fprintf(stderr, "Warning: Index symbol is missing for variable '%s'\n", e->right->name);
 			}
 
-			expr_codegen(sregs, writer, e->right);
+			expr_codegen(sregs, writer, e->right, false);
 			if (e->right->reg == -1) {
 				fprintf(stderr, "Error: No register allocated for index in EXPR_SUBSCRIPT\n");
 				break;
@@ -716,7 +716,7 @@ void expr_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
 			int array_size;
 			if (e->left) {
-				expr_codegen(sregs, writer, e->left);
+				expr_codegen(sregs, writer, e->left, false);
 				array_size = e->left->integer_value;
 			} else {
 				fprintf(stderr, "Error: Array size not specified\n");
@@ -871,7 +871,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         }
 
         case STMT_EXPR: {
-        	expr_codegen(sregs, writer, s->expr);
+        	expr_codegen(sregs, writer, s->expr, false);
         	if (s->expr->reg != -1) {
         		scratch_free(sregs, s->expr->reg);
         	}
@@ -907,40 +907,98 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         case STMT_IF: {
         	int condition_true_label = label_create();
         	int end_label = label_create();
-
         	// push_label(stack, end_label);
         	// push_label(stack, condition_true_label);
+        	if (context->loop_condition != -1 && context->in_loop) {
+	        	if (s->expr) {
+	        		expr_codegen(sregs, writer, s->expr, false);
+	        		
+	        		if (s->else_body) {
+		        		
+		        		switch (s->expr->kind) {
+		        			case EXPR_LESS_EQUAL:
+		        			case EXPR_LESS: {
+		        				snprintf(buffer, sizeof(buffer), "\tjg %s", label_name(end_label));
+								break;        		
+		        			}
 
-        	if (s->expr) {
-        		expr_codegen(sregs, writer, s->expr);
-        		
-        		switch (s->expr->kind) {
-        			case EXPR_LESS_EQUAL:
-        			case EXPR_LESS: {
-        				snprintf(buffer, sizeof(buffer), "\tjg %s", label_name(end_label));
-						break;        		
-        			}
+		        			case EXPR_GREATER_EQUAL:
+		        			case EXPR_GREATER: {
+		        				snprintf(buffer, sizeof(buffer), "\tjle %s", label_name(end_label));
+		        				break;
+		        			}
 
-        			case EXPR_GREATER_EQUAL:
-        			case EXPR_GREATER: {
-        				snprintf(buffer, sizeof(buffer), "\tjle %s", label_name(end_label));
-        				break;
-        			}
+		        			case EXPR_NOT_EQUAL: {
+		        				snprintf(buffer, sizeof(buffer), "\tje %s", label_name(end_label));
+		        				break;
+		        			}
 
-        			case EXPR_NOT_EQUAL: {
-        				snprintf(buffer, sizeof(buffer), "\tje %s", label_name(end_label));
-        				break;
-        			}
+		        			case EXPR_EQUAL: {
+		        				snprintf(buffer, sizeof(buffer), "\tjne %s", label_name(end_label));
+		        				break;
+		        			}
+		  
+		        		}		
+	        		} else {
+	        			switch (s->expr->kind) {
+	        				case EXPR_LESS_EQUAL:
+	        				case EXPR_LESS: {
+	        					snprintf(buffer, sizeof(buffer), "\tjg %s", label_name(context->loop_condition));
+	        					break;
+	        				}
 
-        			case EXPR_EQUAL: {
-        				snprintf(buffer, sizeof(buffer), "\tjne %s", label_name(end_label));
-        				break;
-        			}
-  
+	        				case EXPR_GREATER_EQUAL:
+	        				case EXPR_GREATER: {
+	        					snprintf(buffer, sizeof(buffer), "\tjle %s", label_name(context->loop_condition));
+	        					break;
+	        				}
+
+	        				case EXPR_NOT_EQUAL: {
+	        					snprintf(buffer, sizeof(buffer), "\tje %s", label_name(context->loop_condition));
+	        					break;
+	        				}
+
+	        				case EXPR_EQUAL: {
+	        					snprintf(buffer, sizeof(buffer), "\tjne %s", label_name(context->loop_condition));
+	        				}
+	        			}
+	        		}
+
+	        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
+	        		scratch_free(sregs, s->expr->reg);
+	        	}
+
+        	} else {
+        		if (s->expr) {
+        			expr_codegen(sregs, writer, s->expr, false);
+
         		}
 
-        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
-        		scratch_free(sregs, s->expr->reg);
+        		 if (s->else_body) {
+        		 	switch (s->expr->kind) {
+		        		case EXPR_LESS_EQUAL:
+		        		case EXPR_LESS: {
+		        			snprintf(buffer, sizeof(buffer), "\tjg %s", label_name(end_label));
+							break;        		
+		        		}
+
+		        		case EXPR_GREATER_EQUAL:
+		        		case EXPR_GREATER: {
+		        			snprintf(buffer, sizeof(buffer), "\tjle %s", label_name(end_label));
+		        			break;
+		        		}
+
+		        		case EXPR_NOT_EQUAL: {
+		        			snprintf(buffer, sizeof(buffer), "\tje %s", label_name(end_label));
+		        			break;
+		        		}
+
+		        		case EXPR_EQUAL: {
+		        			snprintf(buffer, sizeof(buffer), "\tjne %s", label_name(end_label));
+		        			break;
+		        		}
+        		 	}
+        		} 
         	}
 
         	snprintf(buffer, sizeof(buffer), "%s:", label_name(condition_true_label));
@@ -955,10 +1013,10 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
         	}
 
-        	snprintf(buffer, sizeof(buffer), "%s:", label_name(end_label));
-        	asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
         	
         	if (s->else_body) {
+        		snprintf(buffer, sizeof(buffer), "%s:", label_name(end_label));
+        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
         		stmt_codegen(sregs, writer, s->else_body, context);
         	}
         		
@@ -975,7 +1033,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     		// push_label(stack, condition_true_label);
 
     		if (s->expr) {
-    			expr_codegen(sregs, writer, s->expr);
+    			expr_codegen(sregs, writer, s->expr, false);
 
     			switch (s->expr->kind) {
         			case EXPR_LESS_EQUAL:
@@ -1073,7 +1131,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 	        		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
         		} else if (s->decl->value && s->decl->value->kind == EXPR_NAME) {
-        			expr_codegen(sregs, writer, s->decl->value);
+        			expr_codegen(sregs, writer, s->decl->value, false);
 
         			snprintf(buffer, sizeof(buffer), "\tmov [rbp - %zu], %s",
         				offset,
@@ -1090,7 +1148,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         			s->expr->left->symbol = s->decl->value->symbol;
         		}
         		      
-        		expr_codegen(sregs, writer, s->expr);
+        		expr_codegen(sregs, writer, s->expr, false);
 
         		switch (s->expr->kind) {
         			case EXPR_LESS_EQUAL:
@@ -1132,7 +1190,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
         		snprintf(buffer, sizeof(buffer), "%s:", label_name(loop_condition));
         		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
-        		expr_codegen(sregs, writer, s->next_expr);
+        		expr_codegen(sregs, writer, s->next_expr, false);
         		if (s->next_expr->reg != -1) {
         			scratch_free(sregs, s->next_expr->reg);
         		}
@@ -1162,7 +1220,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     		asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 
     		if (s->expr) {
-    			expr_codegen(sregs, writer, s->expr);
+    			expr_codegen(sregs, writer, s->expr, false);
 
     			snprintf(buffer, sizeof(buffer), "\tcmp %s, 0",
     				scratch_name(sregs, s->expr->reg));
@@ -1194,7 +1252,7 @@ void stmt_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 				snprintf(buffer, sizeof(buffer), "\tmov rax, %d", s->expr->integer_value);
 				asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
 			} else {
-				expr_codegen(sregs, writer, s->expr);
+				expr_codegen(sregs, writer, s->expr, false);
 				if (strcmp(scratch_name(sregs, s->expr->reg), "rax") != 0) {
 					snprintf(buffer, sizeof(buffer), "\tmov rax, %s", scratch_name(sregs, s->expr->reg));
 					asm_to_write_section(writer, buffer, TEXT_DIRECTIVE);
@@ -1284,7 +1342,9 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
 
     struct LabelStack* stack = create_label_stack();
     struct CodegenContext context = create_codegen_context(-1, false);
-    
+
+    static bool is_func_argument = false;
+
     // Only handle global section setup when not processing local declarations
     if (!is_local) {
         // Handle .data section
@@ -1299,7 +1359,7 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
             if (globals->type->kind != TYPE_FUNCTION) {
                 if (globals->type->kind == TYPE_ARRAY) {
                     if (globals->value && globals->value->kind == EXPR_ARRAY) {
-                        expr_codegen(sregs, writer, globals->value);
+                        expr_codegen(sregs, writer, globals->value, is_func_argument);
                         asm_to_write_section(writer, "", DATA_DIRECTIVE);
                     }
                 } else if (globals->type->kind == TYPE_INTEGER) {
@@ -1385,7 +1445,7 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
             	if (d->value->symbol != d->symbol) {
             		d->value->symbol = d->symbol;
             	}
-            	expr_codegen(sregs, writer, d->value);
+            	expr_codegen(sregs, writer, d->value, false);
             	snprintf(buffer, sizeof(buffer), "\tmov [%s], %s",
             		symbol_codegen(d->symbol),
             		scratch_name(sregs, d->value->reg));
@@ -1397,12 +1457,12 @@ void decl_codegen(struct RegisterTable* sregs, struct AsmWriter* writer, struct 
     } else if (d->type->kind == TYPE_ARRAY) {
     	if (d->symbol->kind == SYMBOL_GLOBAL) {
     		if (d->value) {
-    			expr_codegen(sregs, writer, d->value);
+    			expr_codegen(sregs, writer, d->value, false);
     		} 
     	} else if(d->symbol->kind == SYMBOL_LOCAL) {
     		if (d->value) {
     			printf("Generating code for local array %s\n", d->name);
-    			expr_codegen(sregs, writer, d->value);
+    			expr_codegen(sregs, writer, d->value, false);
     		}
     	}
     }

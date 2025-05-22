@@ -791,7 +791,8 @@ struct param_list* parse_parameters(Token* tokens, int* tokenIdx) {
     struct param_list* current = NULL;
 
     while (tokens[*tokenIdx].type != TOKEN_RIGHT_PARENTHESES) {
-        if (tokens[*tokenIdx].type != TOKEN_INT) {
+        if (tokens[*tokenIdx].type != TOKEN_INT && tokens[*tokenIdx].type != TOKEN_CHAR &&
+            tokens[*tokenIdx].type != TOKEN_BOOLEAN) {
             fprintf(stderr, "Error: Expected type keyword in parameter.\n");
             return NULL;
         }

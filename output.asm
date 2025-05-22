@@ -25,7 +25,7 @@ add:
 function:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 16
+	sub rsp, 48
 
 	mov rax, 2
 	mov [rbp - 4], rax
@@ -33,14 +33,19 @@ function:
 	mov [rbp - 8], rax
 	mov rax, 3
 	mov [rbp - 12], rax
-	mov rax, rdi
-	mov rbx, rsi
-	mov r8, rdi
-	mov rdi, rax
-	mov rsi, r8
+
+	mov dword [rbp - 16], 1
+	mov dword [rbp - 20], 2
+	mov dword [rbp - 24], 3
+	mov dword [rbp - 28], 4
+	mov dword [rbp - 32], 5
+
+	mov rdi, 4
+	mov rsi, 0
+	mov rdi, 0
 	call add
-	mov r9, rax
-	mov [rbp - 16], r9
+	mov rax, rax
+	mov [rbp - 36], rax
 	mov rax, 0
 	leave
 	ret
@@ -48,10 +53,10 @@ function:
 main:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 32
+	sub rsp, 48
 
-	mov r9, 20
-	mov [rbp - 20], r9
+	mov rax, 20
+	mov [rbp - 40], rax
 	mov rax, 0
 	leave
 	ret

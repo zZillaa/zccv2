@@ -418,6 +418,12 @@ void expr_resolve(struct expr* e, struct stack* stack) {
 
 		case EXPR_ARG: {
 			printf("IN EXPR_ARG\n");
+			int found_scope;
+			struct symbol* sym = scope_lookup(stack, e->name, &found_scope);
+			if (sym) {
+				printf("Found symbol '%s' at scope level '%d'\n", sym->name, found_scope);
+			}
+			e->symbol = sym;
 			if (e->right) {
 				expr_resolve(e->right, stack);
 			}
@@ -1081,8 +1087,8 @@ struct type* expr_typecheck(struct expr* e, struct stack* stack) {
             break;
     }
 
-    if (lt) type_delete(lt);
-    if (rt) type_delete(rt);
+    // if (lt) type_delete(lt);
+    // if (rt) type_delete(rt);
     return result;
 }
 
@@ -1107,7 +1113,8 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
             case STMT_EXPR:
                 if (s->expr) {
                     struct type* t = expr_typecheck(s->expr, stack);
-                    type_delete(t);
+                    // type_delete(t);
+                    s->expr->symbol->type = t;
                 }
                 break;
 
@@ -1127,7 +1134,7 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                     if (!t || t->kind != TYPE_BOOLEAN) {
                         fprintf(stderr, "Error: If condition must be boolean type\n");
                     }
-                    type_delete(t);
+                    // type_delete(t);
                 }
 
                 if (s->body) {
@@ -1162,12 +1169,12 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                     if (!t_cond || t_cond->kind != TYPE_BOOLEAN) {
                         fprintf(stderr, "Error: For loop condition must be boolean type\n");
                     }
-                    type_delete(t_cond);
+                    // type_delete(t_cond);
                 }
 
                 if (s->next_expr) {
                     struct type* t_next = expr_typecheck(s->next_expr, stack);
-                    type_delete(t_next);
+                    // type_delete(t_next);
                 }
 
                 if (s->body) {
@@ -1182,7 +1189,7 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                     if (!t || t->kind != TYPE_BOOLEAN) {
                         fprintf(stderr, "Error: While condition must be boolean type\n");
                     }
-                    type_delete(t);
+                    // type_delete(t);
                 }
 
                 if (s->body) {
@@ -1210,7 +1217,7 @@ void stmt_typecheck(struct stmt* s, struct stack* stack) {
                         fprintf(stderr, "Error: Return type mismatch in function '%s'\n", 
                                 current_function->name);
                     }
-                    type_delete(return_type);
+                    // type_delete(return_type);
                 } else if (current_function->type->subtype->kind != TYPE_VOID) {
                     fprintf(stderr, "Error: Non-void function '%s' missing return value\n",
                             current_function->name);
@@ -1272,6 +1279,13 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
             
             scope_exit(stack);  
             current_function = NULL;
+        } else if (d->type->kind == TYPE_INTEGER) {
+        	printf("IN DECL_TYPECHECK with TYPE_INTEGER\n");
+        	if (d->value) {
+        		struct type* t = expr_typecheck(d->value, stack);
+        		// type_delete(t);
+
+        	}
         } else {
             if (d->type->kind == TYPE_ARRAY) {
                 printf("Array typecheck - value kind: %d\n", d->value ? d->value->kind : -1);
@@ -1281,7 +1295,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                         if (size_type->kind != TYPE_INTEGER) {
                             fprintf(stderr, "Error: Array size must be integer\n");
                         }
-                        type_delete(size_type);
+                        // type_delete(size_type);
                     }
 
                     if (d->value->right) {
@@ -1292,7 +1306,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                             if (!type_equals(value_type, d->type->subtype)) {
                                 fprintf(stderr, "Error: Array initialization value type mismatch\n");
                             }
-                            type_delete(value_type);
+                            // type_delete(value_type);
                             init_value = init_value->right;
                         }
                     }
@@ -1303,7 +1317,7 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
                 if (!type_equals(value_type, d->type)) {
                     fprintf(stderr, "Error: Type mismatch in declaration of '%s'\n", d->name);
                 }
-                type_delete(value_type);
+                // type_delete(value_type);
             }
         }
         
@@ -1313,8 +1327,8 @@ void decl_typecheck(struct decl* d, struct stack* stack) {
 
 void program_typecheck(struct program* p, struct stack* stack) {
     if (!p) return;
-    
-    debug_print_scope_stack(stack, "Start of program_typecheck");
+    printf("\0x1B[31mStart of program_typecheck.\x1B[0m");
+    debug_print_scope_stack(stack, "\0x1B[31mStart of program_typecheck.\x1B[0m");
     
     if (p->declaration) {
         decl_typecheck(p->declaration, stack); 
